@@ -72,6 +72,8 @@ GraphX 是 Spark 面向图计算提供的框架与算法库。
 
 ### WordCount实例
 
+**有三种方式实现**
+
 **目录结构**
 
 ![](./doc/14.png)
@@ -159,9 +161,126 @@ object Spark01_WordCount {
 }
 ```
 
+**Spark02_WordCount**
 
+```scala
+package com.stanlong.spark.core.wc
 
+import org.apache.spark.{SparkConf, SparkContext}
 
+object Spark02_WordCount {
 
+    def main(args: Array[String]): Unit = {
+        // 建立和Spark框架的连接
+        val sparkConf = new SparkConf().setMaster("local").setAppName("WordCount")
+        val sc = new SparkContext(sparkConf)
 
+        // 执行业务操作
+        val lines = sc.textFile("datas/*") // 读取文件
+        val words = lines.flatMap(_.split(" ")) // 获取一行一行的数据,扁平化操作：将数据按空格隔开
+        val wordToOne = words.map(
+            word => (word , 1)
+        )
+        val wordGroup = wordToOne.groupBy(
+            t => t._1
+        )
 
+        val wordToCount = wordGroup.map{ // 对分组后的数据进行转换
+            case(word, list) =>{
+                list.reduce(
+                    (t1, t2) => {
+                        (t1._1, t1._2 + t2._2)
+                    }
+                )
+            }
+        }
+        val array = wordToCount.collect()
+        array.foreach(println) // 将转换结果采集到控制台打印出来
+
+        // 关闭连接
+        sc.stop()
+    }
+}
+```
+
+**Spark03_WordCount**
+
+```scala
+package com.stanlong.spark.core.wc
+
+import org.apache.spark.{SparkConf, SparkContext}
+
+object Spark03_WordCount {
+
+    def main(args: Array[String]): Unit = {
+        // 建立和Spark框架的连接
+        val sparkConf = new SparkConf().setMaster("local").setAppName("WordCount")
+        val sc = new SparkContext(sparkConf)
+
+        // 执行业务操作
+        val lines = sc.textFile("datas/*") // 读取文件
+        val words = lines.flatMap(_.split(" ")) // 获取一行一行的数据,扁平化操作：将数据按空格隔开
+        val wordToOne = words.map(
+            word => (word , 1)
+        )
+
+        // reduceByKey : 相同key的数据，可以对value进行reduce聚合
+        val wordToCount = wordToOne.reduceByKey(_ + _)
+
+        val array = wordToCount.collect()
+        array.foreach(println) // 将转换结果采集到控制台打印出来
+
+        // 关闭连接
+        sc.stop()
+    }
+}
+```
+
+## 配置日志格式
+
+![](./doc/15.png)
+
+**log4j.properties**
+
+```properties
+log4j.rootCategory=ERROR, console
+log4j.appender.console=org.apache.log4j.ConsoleAppender 
+log4j.appender.console.target=System.err 
+log4j.appender.console.layout=org.apache.log4j.PatternLayout 
+log4j.appender.console.layout.ConversionPattern=%d{yy/MM/dd HH:mm:ss} %p %c{1}: %m%n
+
+# Set the default spark-shell log level to ERROR. When running the spark-shell, the
+# log level for this class is used to overwrite the root logger's log level, so that
+# the user can have different defaults for the shell and regular Spark apps.
+log4j.logger.org.apache.spark.repl.Main=ERROR
+
+# Settings to quiet third party logs that are too verbose
+log4j.logger.org.spark_project.jetty=ERROR 
+log4j.logger.org.spark_project.jetty.util.component.AbstractLifeCycle=ERROR 
+log4j.logger.org.apache.spark.repl.SparkIMain$exprTyper=ERROR 
+log4j.logger.org.apache.spark.repl.SparkILoop$SparkILoopInterpreter=ERROR 
+log4j.logger.org.apache.parquet=ERROR
+log4j.logger.parquet=ERROR
+
+# SPARK-9183: Settings to avoid annoying messages when looking up nonexistent UDFs in SparkSQL with Hive support
+log4j.logger.org.apache.hadoop.hive.metastore.RetryingHMSHandler=FATAL 
+log4j.logger.org.apache.hadoop.hive.ql.exec.FunctionRegistry=ERROR
+```
+
+## 异常处理
+
+如果本机操作系统是 Windows，在程序中使用了 Hadoop 相关的东西，比如写入文件到HDFS，则会遇到如下异常。
+
+![](./doc/16.png)
+
+出现这个问题的原因，并不是程序的错误，而是windows 系统用到了 hadoop 相关的服务，解决办法是通过配置关联到 windows 的系统依赖就可以了
+
+![](./doc/17.png)
+
+在 IDEA 中配置Run Configuration，添加HADOOP_HOME 变量
+
+![](./doc/18.png)
+
+![](./doc/19.png)
+
+![](./doc/20.png)
