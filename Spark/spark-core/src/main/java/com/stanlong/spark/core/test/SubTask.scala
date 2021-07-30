@@ -5,7 +5,7 @@ class SubTask extends Serializable {
 
     var logic:(Int) => Int = _
 
-    def compute(): Unit ={
+    def compute(): List[Int] ={
         datas.map(logic)
     }
 

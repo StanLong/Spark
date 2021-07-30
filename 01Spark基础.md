@@ -236,6 +236,14 @@ object Spark03_WordCount {
 }
 ```
 
+### 图解wordcount实例
+
+![](./doc/33.png)
+
+
+
+![](./doc/32.png)
+
 ## 配置日志格式
 
 ![](./doc/15.png)

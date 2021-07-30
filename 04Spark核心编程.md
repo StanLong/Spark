@@ -25,3 +25,124 @@ RDD（Resilient Distributed Dataset）叫做弹性分布式数据集，是 Spark
 - 不可变：RDD 封装了计算逻辑，是不可以改变的，想要改变，只能产生新的RDD，在新的RDD 里面封装计算逻辑
 - 可分区、并行计算
 
+### 核心属性
+
+- 分区列表
+
+RDD 数据结构中存在分区列表，用于执行任务时并行计算，是实现分布式计算的重要属性。
+
+- 分区计算函数
+
+Spark 在计算时，是使用分区函数对每一个分区进行计算
+
+- RDD 之间的依赖关系
+
+RDD 是计算模型的封装，当需求中需要将多个计算模型进行组合时，就需要将多个 RDD 建立依赖关系
+
+- 分区器（可选）
+
+当数据为 KV 类型数据时，可以通过设定分区器自定义数据的分区
+
+- 首选位置（可选）
+
+计算数据时，可以根据计算节点的状态选择不同的节点位置进行计算
+
+### 执行原理
+
+从计算的角度来讲，数据处理过程中需要计算资源（内存 & CPU）和计算模型（逻辑）。执行时，需要将计算资源和计算模型进行协调和整合。
+
+Spark 框架在执行时，先申请资源，然后将应用程序的数据处理逻辑分解成一个一个的计算任务。然后将任务发到已经分配资源的计算节点上, 按照指定的计算模型进行数据计算。最后得到计算结果。
+
+RDD 是 Spark 框架中用于数据处理的核心模型，接下来我们看看，在 Yarn 环境中，RDD 的工作原理:
+
+1)    启动 Yarn 集群环境
+
+![](./doc/34.png)
+
+2)    Spark 通过申请资源创建调度节点和计算节点
+
+![](./doc/35.png)
+
+3)    Spark 框架根据需求将计算逻辑根据分区划分成不同的任务
+
+![](./doc/36.png)
+
+4)    调度节点将任务根据计算节点状态发送到对应的计算节点进行计算
+
+![](./doc/37.png)
+
+从以上流程可以看出 RDD 在整个流程中主要用于将逻辑进行封装，并生成 Task 发送给Executor 节点执行计算，接下来我们就一起看看 Spark 框架中RDD 是具体是如何进行数据处理的。
+
+### 基础编程
+
+在 Spark 中创建RDD 的创建方式可以分为四种
+
+从集合中创建RDD，Spark 主要提供了两个方法：parallelize 和 makeRDD
+
+#### 从集合（内存）中创建 RDD
+
+```scala
+package com.stanlong.spark.core.rdd.builder
+
+import org.apache.spark.{SparkConf, SparkContext}
+
+object Spark01_RDD_Memory {
+
+    def main(args: Array[String]): Unit = {
+        // 准备环境
+        val spakConf = new SparkConf().setMaster("local[*]").setAppName("RDD") // [*] 表示当前系统最大可用核数，如果省略则表示用单线程模拟单核
+        val sc = new SparkContext(spakConf)
+
+        // 创建RDD
+        //从内存中创建RDD 将内存中集合的数据作为处理的数据源
+        val seq = Seq[Int](1,2,3,4)
+        // val rdd = sc.parallelize(seq) // parallelize 并行, 等同于下面一行
+        val rdd = sc.makeRDD(seq) // makeRDD 的底层实现也是调用了 rdd对象的parallelize方法
+
+        rdd.collect().foreach(println)
+
+        // 关闭环境
+        sc.stop()
+    }
+}
+```
+
+#### 从外部存储（文件）创建RDD
+
+由外部存储系统的数据集创建RDD 包括：本地的文件系统，所有Hadoop 支持的数据集， 比如HDFS、HBase 等
+
+```scala
+package com.stanlong.spark.core.rdd.builder
+
+import org.apache.spark.{SparkConf, SparkContext}
+
+object Spark02_RDD_File {
+
+    def main(args: Array[String]): Unit = {
+        // 准备环境
+        val spakConf = new SparkConf().setMaster("local[*]").setAppName("RDD") // [*] 表示当前系统最大可用核数，如果省略则表示用单线程模拟单核
+        val sc = new SparkContext(spakConf)
+
+        // 创建RDD
+        //从文件中创建RDD 将文件中的数据作为处理的数据源
+        // textFile 以行为单位读取数据，读取到的都是字符串
+        val rdd = sc.textFile("datas/1.txt") // 路径默认以当前环境的根路径为基准，也可用写绝对路径。如果文件后缀名相同，也可以使用通配符
+
+        // wholeTextFiles 以文件为单位读取数据，读取的结果是个元组，第一个元素表示路径，第二个元素表示文件内容
+        // val rdd = sc.wholeTextFiles("datas")
+
+        rdd.collect().foreach(println)
+
+        // 关闭环境
+        sc.stop()
+    }
+}
+```
+
+#### 从其他 RDD 创建
+
+主要是通过一个RDD 运算完后，再产生新的RDD。详情请参考后续章节
+
+#### 直接创建 RDD（new）
+
+使用 new 的方式直接构造RDD，一般由Spark 框架自身使用。
