@@ -1,6 +1,6 @@
 package com.stanlong.spark.core.rdd.operator.transform
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 
 object Spark01_RDD_Operator_Transform {
 
@@ -8,14 +8,10 @@ object Spark01_RDD_Operator_Transform {
         val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
         val sc = new SparkContext(sparkConf)
 
-        // 算子 -》repartition 扩大分区
-        val rdd = sc.makeRDD(List(1, 2, 3, 4), 4)
-
-        // repartition 底层代码调用的就是 coalesce， 而且肯定采用shuffle
-        val newRdd = rdd.repartition(3)
-        newRdd.saveAsTextFile("output")
-
-        // coalesce 也可以扩大分区吗，但是如果不进行shuffle操作，则不起作用
+        // partitionBy 根据分区的规则对数据进行重新分区
+        val rdd = sc.makeRDD(List(1,2,3,4))
+        val mapRdd = rdd.map((_, 1))
+        mapRdd.partitionBy(new HashPartitioner(2)).saveAsTextFile("output")
 
         sc.stop()
     }

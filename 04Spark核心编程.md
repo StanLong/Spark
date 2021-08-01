@@ -291,34 +291,20 @@ def mapPartitions[U: ClassTag](
 实例:
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》mapPartitions
+val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
 
-import org.apache.spark.{SparkConf, SparkContext}
-
-object Spark002_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》mapPartitions
-        val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
-
-        // mapPartitions
-        // 以分区为单位进行数据转换操作
-        // 但是会将整个分区的数据加载到内存进行引用
-        // 如果处理完的数据不被释放，在内存较小，数据较大的场合下，容易出现内存溢出
-        val mapRdd = rdd.mapPartitions(
-            iter => { // 有几个分区 iter 就会迭代几次
-                iter.map(_ * 2)
-            }
-        )
-
-        mapRdd.collect().foreach(println)
-
-        sc.stop()
+// mapPartitions
+// 以分区为单位进行数据转换操作
+// 但是会将整个分区的数据加载到内存进行引用
+// 如果处理完的数据不被释放，在内存较小，数据较大的场合下，容易出现内存溢出
+val mapRdd = rdd.mapPartitions(
+    iter => { // 有几个分区 iter 就会迭代几次
+        iter.map(_ * 2)
     }
-}
+)
+
+mapRdd.collect().foreach(println)
 ```
 
 > map 和 mapPartitions 的区别？
@@ -350,44 +336,30 @@ def mapPartitionsWithIndex[U: ClassTag](
 实例:
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》mapPartitionsWithIndex
+val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
 
-import org.apache.spark.{SparkConf, SparkContext}
+// val mapRdd = rdd.mapPartitionsWithIndex( // 获取第二个分区的数据
+//     (index, iter) => {
+//         if (index == 1) {
+//             iter
+//         } else {
+//             Nil.iterator
+//         }
+//     }
+// )
 
-object Spark03_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》mapPartitionsWithIndex
-        val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
-
-        // val mapRdd = rdd.mapPartitionsWithIndex( // 获取第二个分区的数据
-        //     (index, iter) => {
-        //         if (index == 1) {
-        //             iter
-        //         } else {
-        //             Nil.iterator
-        //         }
-        //     }
-        // )
-
-        val mapRdd = rdd.mapPartitionsWithIndex( // 打印数字和数字所在的分区
-            (index, iter) => {
-                iter.map(
-                    num => {
-                        (index, num)
-                    }
-                )
+val mapRdd = rdd.mapPartitionsWithIndex( // 打印数字和数字所在的分区
+    (index, iter) => {
+        iter.map(
+            num => {
+                (index, num)
             }
         )
-
-        mapRdd.collect().foreach(println)
-
-        sc.stop()
     }
-}
+)
+
+mapRdd.collect().foreach(println)
 ```
 
 #### flatMap
@@ -405,32 +377,18 @@ def flatMap[U: ClassTag](
 实例:
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》flatMap
+val rdd = sc.makeRDD(
+    List(List(1, 2), List(3,4))
+)
 
-import org.apache.spark.{SparkConf, SparkContext}
-
-object Spark04_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》flatMap
-        val rdd = sc.makeRDD(
-            List(List(1, 2), List(3,4))
-        )
-
-        val flatRdd = rdd.flatMap(
-            list => {
-                list
-            }
-        )
-
-        flatRdd.collect().foreach(println)
-
-        sc.stop()
+val flatRdd = rdd.flatMap(
+    list => {
+        list
     }
-}
+)
+
+flatRdd.collect().foreach(println)
 ```
 
 #### glom
@@ -442,34 +400,20 @@ object Spark04_RDD_Operator_Transform {
 实例：
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+ // 算子 -》glom
+val rdd = sc.makeRDD(List(1,2,3,4), 2)
 
-import org.apache.spark.{SparkConf, SparkContext}
+// val glomRdd = rdd.glom()
 
-object Spark05_RDD_Operator_Transform {
+// 计算所有分区最大值求和（分区内取最大值，分区间最大值求和）
+val glomRdd = rdd.glom()
 
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》glom
-        val rdd = sc.makeRDD(List(1,2,3,4), 2)
-
-        // val glomRdd = rdd.glom()
-
-        // 计算所有分区最大值求和（分区内取最大值，分区间最大值求和）
-        val glomRdd = rdd.glom()
-
-        val maxRdd = glomRdd.map(
-            array => {
-                array.max
-            }
-        )
-        println(maxRdd.collect().sum)
-
-        sc.stop()
+val maxRdd = glomRdd.map(
+    array => {
+        array.max
     }
-}
+)
+println(maxRdd.collect().sum)
 ```
 
 #### groupBy
@@ -481,34 +425,20 @@ object Spark05_RDD_Operator_Transform {
 实例:
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》groupBy
+//val rdd = sc.makeRDD(List(1,2,3,4), 2)
 
-import org.apache.spark.{SparkConf, SparkContext}
+//// groupBy 会将数据源中的每一个数据进行分组判断，根据返回的分组key进行分组
+//// 相同key值的数据会放置在一个组中， 分组和分区没有必然的关系
+//def groupFunction(num:Int): Int ={ // 该函数实现的分组是，奇数放一个组，偶数放一个组
+//    num % 2
+//}
+//val groupRdd = rdd.groupBy(groupFunction)
 
-object Spark06_RDD_Operator_Transform {
+val rdd = sc.makeRDD(List("Hello", "Spark", "Scala", "Hadoop"), 2)
+val groupRdd = rdd.groupBy(_.charAt(0)) // 根据首字母进行分组
 
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》groupBy
-        //val rdd = sc.makeRDD(List(1,2,3,4), 2)
-
-        //// groupBy 会将数据源中的每一个数据进行分组判断，根据返回的分组key进行分组
-        //// 相同key值的数据会放置在一个组中， 分组和分区没有必然的关系
-        //def groupFunction(num:Int): Int ={ // 该函数实现的分组是，奇数放一个组，偶数放一个组
-        //    num % 2
-        //}
-        //val groupRdd = rdd.groupBy(groupFunction)
-
-        val rdd = sc.makeRDD(List("Hello", "Spark", "Scala", "Hadoop"), 2)
-        val groupRdd = rdd.groupBy(_.charAt(0)) // 根据首字母进行分组
-
-        groupRdd.collect().foreach(println)
-
-        sc.stop()
-    }
-}
+groupRdd.collect().foreach(println)
 ```
 
 #### filter
@@ -520,26 +450,12 @@ object Spark06_RDD_Operator_Transform {
 实例:
 
 ```java
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》filter
+val rdd = sc.makeRDD(List(1,2,3,4))
 
-import org.apache.spark.{SparkConf, SparkContext}
+val filterRdd = rdd.filter(num => num % 2 != 0) // 过滤出奇数
 
-object Spark06_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》filter
-        val rdd = sc.makeRDD(List(1,2,3,4))
-
-        val filterRdd = rdd.filter(num => num % 2 != 0) // 过滤出奇数
-
-        filterRdd.collect().foreach(println)
-
-        sc.stop()
-    }
-}
+filterRdd.collect().foreach(println)
 ```
 
 #### sample
@@ -559,31 +475,17 @@ def sample(
 实例: 
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》sample
+val rdd = sc.makeRDD(List(1,2,3,4,5,6,7,8,9,10))
 
-import org.apache.spark.{SparkConf, SparkContext}
-
-object Spark06_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》sample
-        val rdd = sc.makeRDD(List(1,2,3,4,5,6,7,8,9,10))
-
-        // 第一个参数表示: 抽取数据后是否将数据返回 true(放回)， false(丢弃)
-        // 第二个参数表示: 数据源中每条数据被抽取的概率
-        // 第三个参数表示: 抽取数据式随机算法的种子, 如果参数为空，那么使用当前系统时间
-        println(rdd.sample(
-            false,
-            0.4,
-            1
-        ).collect().mkString(","))
-
-        sc.stop()
-    }
-}
+// 第一个参数表示: 抽取数据后是否将数据返回 true(放回)， false(丢弃)
+// 第二个参数表示: 数据源中每条数据被抽取的概率
+// 第三个参数表示: 抽取数据式随机算法的种子, 如果参数为空，那么使用当前系统时间
+println(rdd.sample(
+    false,
+    0.4,
+    1
+).collect().mkString(","))
 ```
 
 #### distinct
@@ -599,24 +501,10 @@ def distinct(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T]
 函数说明: 将数据集中重复的数据去重
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》distinct
+val rdd = sc.makeRDD(List(1, 2, 3, 4, 1,2,3,4)) // 去重
 
-import org.apache.spark.{SparkConf, SparkContext}
-
-object Spark01_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》distinct
-        val rdd = sc.makeRDD(List(1, 2, 3, 4, 1,2,3,4)) // 去重
-
-        rdd.distinct().collect().foreach(println)
-        
-        sc.stop()
-    }
-}
+rdd.distinct().collect().foreach(println)
 ```
 
 #### coalesce
@@ -636,27 +524,13 @@ def coalesce(
 实例：
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》coalesce 合并分区
+val rdd = sc.makeRDD(List(1, 2, 3, 4), 4)
+// val newRdd = rdd.coalesce(2) // 将四个分区合并成两个， 默认不会将分区数据打乱重新组合， 这种情况下可能会导致数据不均衡，出现数据倾斜
+val newRdd = rdd.coalesce(2, true) //  shuffle = true 可以让数据均衡分配到分区里，避免数据倾斜
+newRdd.saveAsTextFile("output")
 
-import org.apache.spark.{SparkConf, SparkContext}
-
-object Spark01_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》coalesce 合并分区
-        val rdd = sc.makeRDD(List(1, 2, 3, 4), 4)
-        // val newRdd = rdd.coalesce(2) // 将四个分区合并成两个， 默认不会将分区数据打乱重新组合， 这种情况下可能会导致数据不均衡，出现数据倾斜
-        val newRdd = rdd.coalesce(2, true) //  shuffle = true 可以让数据均衡分配到分区里，避免数据倾斜
-        newRdd.saveAsTextFile("output")
-        
-        // coalesce 也可以扩大分区吗，但是如果不进行shuffle操作，则不起作用
-        
-       sc.stop()
-    }
-}
+// coalesce 也可以扩大分区吗，但是如果不进行shuffle操作，则不起作用
 ```
 
 #### repartition
@@ -668,29 +542,13 @@ object Spark01_RDD_Operator_Transform {
 实例：
 
 ```scala
-package com.stanlong.spark.core.rdd.operator.transform
+// 算子 -》repartition 扩大分区
+val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
 
-import org.apache.spark.{SparkConf, SparkContext}
-
-object Spark01_RDD_Operator_Transform {
-
-    def main(args: Array[String]): Unit = {
-        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
-        val sc = new SparkContext(sparkConf)
-
-        // 算子 -》repartition 扩大分区
-        val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
-
-        // repartition 底层代码调用的就是 coalesce， 而且肯定采用shuffle
-        val newRdd = rdd.repartition(3)
-        newRdd.saveAsTextFile("output")
-        
-        sc.stop()
-    }
-}
+// repartition 底层代码调用的就是 coalesce， 而且肯定采用shuffle
+val newRdd = rdd.repartition(3)
+newRdd.saveAsTextFile("output")
 ```
-
-
 
 #### sortBy
 
@@ -708,6 +566,18 @@ def sortBy[K](
 
 实例：
 
+```scala
+// 算子 -》sortBy 排序， 默认升序，默认情况下不会改变分区
+// val rdd = sc.makeRDD(List(1, 3, 2, 5, 4), 2)
+// val sortRdd = rdd.sortBy(num=>num)
+// sortRdd.saveAsTextFile("output")
+
+val rdd = sc.makeRDD(List(("1",1),("11",2),("2",3)))
+// sortBy 可以根据指定的方法对数据源中的数据进行排序，第二个参数式设置排序式升序还是降序
+val sortRdd = rdd.sortBy(t=>t._1.toInt, false)
+sortRdd.collect().foreach(println)
+```
+
 #### intersection
 
 函数签名: `def intersection(other: RDD[T]): RDD[T]`
@@ -715,6 +585,15 @@ def sortBy[K](
 函数说明: 对源RDD 和参数RDD 求交集后返回一个新的RDD
 
 实例：
+
+```scala
+val rdd1 = sc.makeRDD(List(1,2,3,4))
+val rdd2 = sc.makeRDD(List(3,4,5,6))
+
+// 交集, 要求数据源类型保持一致
+val rdd3 = rdd1.intersection(rdd2)
+println(rdd3.collect().mkString(","))
+```
 
 #### union
 
@@ -724,6 +603,12 @@ def sortBy[K](
 
 实例：
 
+```scala
+// 并集, 要求数据源类型保持一致
+val rdd4 = rdd1.union(rdd2)
+println(rdd4.collect().mkString(","))
+```
+
 #### subtract
 
 函数签名:  ` def subtract(other: RDD[T]): RDD[T]`
@@ -731,6 +616,12 @@ def sortBy[K](
 函数说明:  以一个 RDD 元素为主，去除两个 RDD 中重复元素，将其他元素保留下来。求差集
 
 实例：
+
+```scala
+// 差集, 要求数据源类型保持一致
+val rdd5 = rdd1.subtract(rdd2)
+println(rdd5.collect().mkString(","))
+```
 
 #### zip
 
@@ -740,6 +631,12 @@ def sortBy[K](
 
 实例：
 
+```scala
+// 拉链, 数据源的类型可以不一致， 但是数据源的分区要保持一致， 数据源的元素个数要保持一致
+val rdd6 = rdd1.zip(rdd2)
+println(rdd6.collect().mkString(","))
+```
+
 #### partitionBy
 
 函数签名:  ` def partitionBy(partitioner: Partitioner): RDD[(K, V)]`
@@ -747,6 +644,13 @@ def sortBy[K](
 函数说明: 将数据按照指定Partitioner 重新进行分区。Spark 默认的分区器是HashPartitioner
 
 实例：
+
+```scala
+// partitionBy 根据分区的规则对数据进行重新分区
+val rdd = sc.makeRDD(List(1,2,3,4))
+val mapRdd = rdd.map((_, 1))
+mapRdd.partitionBy(new HashPartitioner(2)).saveAsTextFile("output")
+```
 
 #### reduceByKey
 
