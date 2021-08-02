@@ -533,6 +533,8 @@ newRdd.saveAsTextFile("output")
 // coalesce 也可以扩大分区吗，但是如果不进行shuffle操作，则不起作用
 ```
 
+**双 Value 类型**
+
 #### repartition
 
 函数签名: ` def repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T]`
@@ -637,6 +639,8 @@ val rdd6 = rdd1.zip(rdd2)
 println(rdd6.collect().mkString(","))
 ```
 
+**Key-Value类型**
+
 #### partitionBy
 
 函数签名:  ` def partitionBy(partitioner: Partitioner): RDD[(K, V)]`
@@ -666,6 +670,13 @@ def reduceByKey(func: (V, V) => V, numPartitions: Int): RDD[(K, V)]
 
 实例：
 
+```scala
+// reduceByKey 对相同key的value进行聚合的操作, 如果key只有一个则不参与运算
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("b",4)))
+val reduceRdd = rdd.reduceByKey(_ + _)
+reduceRdd.collect().foreach(println)
+```
+
 #### groupByKey
 
 函数签名: 
@@ -682,6 +693,20 @@ def groupByKey(partitioner: Partitioner): RDD[(K, Iterable[V])]
 
 实例：
 
+```scala
+// groupByKey 将相同key的数据分组一个组中，形成一个对偶元组，
+// 元组中的第一个元素是key， 第二个元素是相同key的value集合
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("b",4)))
+val groupRdd = rdd.groupByKey()
+groupRdd.collect().foreach(println) 
+```
+
+> reduceByKey和groupByKey的区别
+
+**从** **shuffle 的角度**：reduceByKey 和 groupByKey 都存在 shuffle 的操作，但是reduceByKey 可以在 shuffle 前对分区内相同 key 的数据进行预聚合（combine）功能，这样会减少落盘的数据量，而groupByKey 只是进行分组，不存在数据量减少的问题，reduceByKey 性能比较高。
+
+**从功能的角度**：reduceByKey 其实包含分组和聚合的功能。GroupByKey 只能分组，不能聚合，所以在分组聚合的场合下，推荐使用 reduceByKey，如果仅仅是分组而不需要聚合。那么还是只能使用groupByKey
+
 #### aggregateByKey
 
 函数签名: 
@@ -697,6 +722,18 @@ def aggregateByKey[U: ClassTag](zeroValue: U)(
 
 实例：
 
+```scala
+// aggregateByKey 有两个参数列表
+// 第一个参数列表 需要传递两个参数， 第一个参数表示初始值
+// 第二个参数列表 需要传递两个参数， 第一个表示分区内的计算规则，第二个表示分区间的计算规则
+// 最终的返回结果应该和初始值的类型保持一致
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("a",4)), 2)
+rdd.aggregateByKey(0 )(
+    (x, y) => math.max(x,y),
+    (x, y) => x+y
+).collect().foreach(println)
+```
+
 #### foldByKey
 
 函数签名: ` def foldByKey(zeroValue: V)(func: (V, V) => V): RDD[(K, V)]`
@@ -704,6 +741,15 @@ def aggregateByKey[U: ClassTag](zeroValue: U)(
 函数说明: 当分区内计算规则和分区间计算规则相同时，aggregateByKey 就可以简化为foldByKey
 
 实例:
+
+```scala
+// 如果聚合计算时，分区内和分区间的计算规则相同
+// 使用 aggregateByKey
+// rdd.aggregateByKey(0)(_ + _, _ + _).collect().foreach(println)
+// 而使用 foldByKey 可以简化操作 
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("a",4)), 2)
+rdd.foldByKey(0)(_ + _).collect().foreach(println)
+```
 
 #### combineByKey
 
@@ -720,6 +766,39 @@ def combineByKey[C](
 函数说明: 最通用的对key-value 型 rdd 进行聚集操作的聚集函数（aggregation function）。类似于aggregate()，combineByKey()允许用户返回值的类型与输入不一致
 
 实例:
+
+```scala
+// combineByKey
+// 第一个参数 将相同key的第一个数据进行结构转换，实现操作
+// 第二个参数 分区内的计算规则
+// 第三个参数 分区间的计算规则
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("b",4), ("b",5), ("b",6)), 2)
+rdd.combineByKey(
+    v =>(v, 1),
+    (t:(Int, Int), v) => {
+        (t._1 + v, t._2 +1)
+    },
+    (t1:(Int, Int), t2:(Int, Int)) =>{
+        (t1._1 + t2._1, t1._2 + t2._2)
+    }
+).collect().foreach(println)
+```
+
+>  reduceByKey: 
+
+相同 key 的第一个数据不进行任何计算，分区内和分区间计算规则相同
+
+> FoldByKey: 
+
+相同 key 的第一个数据和初始值进行分区内计算，分区内和分区间计算规则相同
+
+> AggregateByKey：
+
+相同 key 的第一个数据和初始值进行分区内计算，分区内和分区间计算规则可以不相同
+
+>  CombineByKey:
+
+当计算时，发现数据结构不满足要求时，可以让第一个数据转换结构。分区内和分区间计算规则不相同。
 
 #### sortByKey
 
