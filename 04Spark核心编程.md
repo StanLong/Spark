@@ -257,7 +257,7 @@ object Spark01_RDD_Operator_Transform {
         //    num * 2
         //})
 
-        //根据scala的自简原则， 匿名函数可以写成如下形式
+        //根据scala的至简原则， 匿名函数可以写成如下形式
         val mapRdd = rdd.map(_ * 2)
 
         mapRdd.collect().foreach(println)
@@ -732,6 +732,25 @@ rdd.aggregateByKey(0 )(
     (x, y) => math.max(x,y),
     (x, y) => x+y
 ).collect().foreach(println)
+
+// 获取相同key的数据的平均值
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("b", 3),("b",4),("b",5),("a",6)), 2)
+val newRdd = rdd.aggregateByKey((0,0))( // (0,0) 第一个0表示初始值，用于计算数据的总和，第二个0表示相同的key出现的次数
+    (t, v) =>{
+        (t._1 +v , t._2 + 1) // (数据相加，次数相加)
+    }, // 分区内计算
+    (t1, t2) =>{
+        (t1._1 + t2._1, t1._2 + t2._2)
+    } // 分区间计算
+)
+
+val resultRdd = newRdd.mapValues { // mapValues， key不变，只对value进行计算
+    case (num, cnt) => {
+        num / cnt
+    }
+}
+
+resultRdd.collect().foreach(println)
 ```
 
 #### foldByKey
