@@ -832,6 +832,15 @@ def sortByKey(
 
 函数说明: 在一个(K,V)的 RDD 上调用，K 必须实现 Ordered 接口(特质)，返回一个按照 key 进行排序的
 
+实例：
+
+```scala
+// 按key排序
+val rdd = sc.makeRDD(List(("a", 1),("a", 2),("b", 3),("b",4),("b",5),("a",6)), 2)
+val resultRdd = rdd.sortByKey(true, 2)
+resultRdd.collect().foreach(println)
+```
+
 #### join
 
 函数签名: ` def join[W](other: RDD[(K, W)]): RDD[(K, (V, W))]`
