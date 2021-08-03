@@ -362,6 +362,15 @@ val mapRdd = rdd.mapPartitionsWithIndex( // 打印数字和数字所在的分区
 mapRdd.collect().foreach(println)
 ```
 
+执行结果
+
+```
+(0,1)
+(0,2)
+(1,3)
+(1,4)
+```
+
 #### flatMap
 
 函数签名:
@@ -488,6 +497,12 @@ println(rdd.sample(
 ).collect().mkString(","))
 ```
 
+执行结果
+
+```
+1,4,8,9
+```
+
 #### distinct
 
 函数签名：
@@ -597,6 +612,12 @@ val rdd3 = rdd1.intersection(rdd2)
 println(rdd3.collect().mkString(","))
 ```
 
+执行结果
+
+```
+3,4
+```
+
 #### union
 
 函数签名: ` def union(other: RDD[T]): RDD[T]`
@@ -609,6 +630,12 @@ println(rdd3.collect().mkString(","))
 // 并集, 要求数据源类型保持一致
 val rdd4 = rdd1.union(rdd2)
 println(rdd4.collect().mkString(","))
+```
+
+执行结果
+
+```
+1,2,3,4,3,4,5,6
 ```
 
 #### subtract
@@ -625,6 +652,12 @@ val rdd5 = rdd1.subtract(rdd2)
 println(rdd5.collect().mkString(","))
 ```
 
+执行结果
+
+```
+1,2
+```
+
 #### zip
 
 函数签名: ` def zip[U: ClassTag](other: RDD[U]): RDD[(T, U)]`
@@ -637,6 +670,12 @@ println(rdd5.collect().mkString(","))
 // 拉链, 数据源的类型可以不一致， 但是数据源的分区要保持一致， 数据源的元素个数要保持一致
 val rdd6 = rdd1.zip(rdd2)
 println(rdd6.collect().mkString(","))
+```
+
+执行结果
+
+```
+(1,3),(2,4),(3,5),(4,6)
 ```
 
 **Key-Value类型**
@@ -677,6 +716,13 @@ val reduceRdd = rdd.reduceByKey(_ + _)
 reduceRdd.collect().foreach(println)
 ```
 
+执行结果:
+
+```
+(a,6)
+(b,4)
+```
+
 #### groupByKey
 
 函数签名: 
@@ -699,6 +745,13 @@ def groupByKey(partitioner: Partitioner): RDD[(K, Iterable[V])]
 val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("b",4)))
 val groupRdd = rdd.groupByKey()
 groupRdd.collect().foreach(println) 
+```
+
+执行结果:
+
+```
+(a,CompactBuffer(1, 2, 3))
+(b,CompactBuffer(4))
 ```
 
 > reduceByKey和groupByKey的区别
@@ -770,6 +823,12 @@ val rdd = sc.makeRDD(List(("a", 1),("a", 2),("a", 3),("a",4)), 2)
 rdd.foldByKey(0)(_ + _).collect().foreach(println)
 ```
 
+执行结果:
+
+```scala
+(a,10)
+```
+
 #### combineByKey
 
 函数签名: 
@@ -801,6 +860,13 @@ rdd.combineByKey(
         (t1._1 + t2._1, t1._2 + t2._2)
     }
 ).collect().foreach(println)
+```
+
+执行结果:
+
+```
+(b,(15,3))
+(a,(6,3))
 ```
 
 >  reduceByKey: 
@@ -841,6 +907,17 @@ val resultRdd = rdd.sortByKey(true, 2)
 resultRdd.collect().foreach(println)
 ```
 
+执行结果:
+
+```
+(a,1)
+(a,2)
+(a,6)
+(b,3)
+(b,4)
+(b,5)
+```
+
 #### join
 
 函数签名: ` def join[W](other: RDD[(K, W)]): RDD[(K, (V, W))]`
@@ -848,6 +925,24 @@ resultRdd.collect().foreach(println)
 函数说明: 在类型为(K,V)和(K,W)的RDD 上调用，返回一个相同 key 对应的所有元素连接在一起的(K,(V,W))的RDD
 
 实例:
+
+```scala
+// join 两个不同数据源的数据，相同key的value会连接在一起，形成元组
+// 如果数据源中key没有匹配上，那么数据不会出现在结果中
+// 如果两个数据源中key有多个相同的，会依次匹配，可能会出现笛卡儿积，导致性能降低
+val rdd1 = sc.makeRDD(List(("a", 1), ("b", 2), ("c", 3)))
+val rdd2 = sc.makeRDD(List(("a", 4), ("b", 5), ("c", 6), ("d", 6)))
+val joinRdd = rdd1.join(rdd2)
+joinRdd.collect().foreach(println)
+```
+
+执行结果:
+
+```
+(a,(1,4))
+(b,(2,5))
+(c,(3,6))
+```
 
 #### leftOuterJoin
 
@@ -857,6 +952,28 @@ resultRdd.collect().foreach(println)
 
 实例:
 
+```scala
+// 左连接，右连接
+val rdd1 = sc.makeRDD(List(("a", 1), ("b", 2), ("c", 3)))
+val rdd2 = sc.makeRDD(List(("a", 4), ("b", 5), ("c", 6), ("d", 6)))
+val joinRdd = rdd1.leftOuterJoin(rdd2)
+val joinRdd2 = rdd1.rightOuterJoin(rdd2)
+joinRdd.collect().foreach(println)
+joinRdd2.collect().foreach(println)
+```
+
+执行结果:
+
+```scala
+(a,(1,Some(4)))
+(b,(2,Some(5)))
+(c,(3,Some(6)))
+(a,(Some(1),4))
+(b,(Some(2),5))
+(c,(Some(3),6))
+(d,(None,6))
+```
+
 #### cogroup
 
 函数签名:  ` def cogroup[W](other: RDD[(K, W)]): RDD[(K, (Iterable[V], Iterable[W]))]`
@@ -864,6 +981,23 @@ resultRdd.collect().foreach(println)
 函数说明:  在类型为(K,V)和(K,W)的RDD 上调用，返回一个(K,(Iterable\<V>,Iterable\<W>))类型的RDD
 
 实例:
+
+```scala
+// cogroup = connect + group
+val rdd1 = sc.makeRDD(List(("a", 1), ("b", 2), ("c", 3)))
+val rdd2 = sc.makeRDD(List(("a", 4), ("b", 5), ("c", 6), ("d", 6)))
+val coRdd = rdd1.cogroup(rdd2)
+coRdd.collect().foreach(println)
+```
+
+执行结果:
+
+```
+(a,(CompactBuffer(1),CompactBuffer(4)))
+(b,(CompactBuffer(2),CompactBuffer(5)))
+(c,(CompactBuffer(3),CompactBuffer(6)))
+(d,(CompactBuffer(),CompactBuffer(6)))
+```
 
 ### RDD 行动算子
 
