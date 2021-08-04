@@ -1001,83 +1001,78 @@ coRdd.collect().foreach(println)
 
 ### RDD 行动算子
 
-#### reduce
+所谓行动算子，其实就是触发作业执行的方法，底层代码调用的是环境对象的 runjob 方法
 
-函数签名:
+常见行动算子
 
-函数说明:
+```scala
+// reduce 聚合
+val result = rdd.reduce(_ + _)
+println(result)
 
-实例:
+// collect 方法会将不同分区的数据按照分区的顺序采集到driver端内存中，形成数组
+val ints = rdd.collect()
+println(ints.mkString(","))
 
-#### collect
+// count 统计数据源中数据的个数
+val l = rdd.count()
+println(l)
 
-函数签名:
+// first 获取数据源中的第一个
+val i = rdd.first()
+println(i)
 
-函数说明:
+// take 获取N个数据
+val ints1 = rdd.take(3)
+println(ints1.mkString(","))
 
-实例:
+// takeOrdered 先排序在取N个数据, 默认升序
+val ints2 = rdd.takeOrdered(3)
+println(ints2.mkString(","))
+```
 
-#### count
+```scala
+val rdd = sc.makeRDD(List(1, 2, 3, 4), 2)
 
-函数签名:
+// aggregateByKey 只会参与分区内计算
+// aggregate 会参与分区内和分区间的运算
+val result = rdd.aggregate(10)(_ + _, _ + _)
+println(result)
 
-函数说明:
+// fold 当分区内和分区间的计算规则相同时aggregate的简化写法
+val result1 = rdd.fold(10)(_ + _)
+print(result1)
+```
 
-实例:
+```scala
+// countByValue 统计每个值出现的次数
+val rdd = sc.makeRDD(List(1, 1, 1, 4), 2)
+val result = rdd.countByValue()
+println(result)
 
-#### first
+// countByKey 统计key出现的次数
+val rdd1 = sc.makeRDD(List(("a", 1),("a", 2),("a" ,3),("b", 1)))
+val result1 = rdd1.countByKey()
+println(result1)
+```
 
-函数签名:
 
-函数说明:
-
-实例:
-
-#### take
-
-函数签名:
-
-函数说明:
-
-实例:
-
-#### takeOrdered
-
-函数签名:
-
-函数说明:
-
-实例:
-
-#### aggregate
-
-函数签名:
-
-函数说明:
-
-实例:
-
-#### fold
-
-函数签名:
-
-函数说明:
-
-实例:
-
-#### countByKey
-
-函数签名:
-
-函数说明:
-
-实例:
 
 #### save 相关算子
 
-函数签名:
+函数签名: 
 
-函数说明:
+```scala
+def saveAsTextFile(path: String): Unit 
+def saveAsObjectFile(path: String): Unit 
+
+def saveAsSequenceFile(
+path: String,
+codec: Option[Class[_ <: CompressionCodec]] = None
+): Unit
+```
+
+函数说明: 将数据保存到不同格式的文件中
 
 实例:
 
@@ -1085,6 +1080,13 @@ coRdd.collect().foreach(println)
 
 函数签名:
 
-函数说明:
+```scala
+def foreach(f: T => Unit): Unit = withScope { 
+    val cleanF = sc.clean(f)
+	sc.runJob(this, (iter: Iterator[T]) => iter.foreach(cleanF)
+)
+```
+
+函数说明: 分布式遍历RDD 中的每一个元素，调用指定函数
 
 实例:
