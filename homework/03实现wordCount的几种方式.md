@@ -1,3 +1,4 @@
+```scala
 package com.stanlong.spark.core.wc
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -126,3 +127,5 @@ object Spark03_WordCount {
     }
 
 }
+```
+

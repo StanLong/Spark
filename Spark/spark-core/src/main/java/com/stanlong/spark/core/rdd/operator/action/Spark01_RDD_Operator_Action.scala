@@ -7,17 +7,17 @@ object Spark01_RDD_Operator_Action {
         val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
         val sc = new SparkContext(sparkConf)
 
-        val rdd = sc.makeRDD(List(1, 1, 1, 4), 2)
-        val result = rdd.countByValue()
-        println(result)
-
-        val rdd1 = sc.makeRDD(List(("a", 1),("a", 2),("a" ,3),("b", 1)))
-        val result1 = rdd1.countByKey()
-        println(result1)
-
-
-
-
+        val rdd = sc.makeRDD(List(1,2,3,4))
+        var user = new User()
+        rdd.foreach( // rdd 中传递的函数是会包含闭包操作的，
+            num =>{
+                println("age=" + (user.age + num))
+            }
+        )
         sc.stop()
     }
+}
+
+class User {
+    var age = 30
 }
