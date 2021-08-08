@@ -73,3 +73,224 @@ RDD 是 Spark 框架中用于数据处理的核心模型，接下来我们看看
 
 从以上流程可以看出 RDD 在整个流程中主要用于将逻辑进行封装，并生成 Task 发送给Executor 节点执行计算，接下来我们就一起看看 Spark 框架中RDD 是具体是如何进行数据处理的。
 
+## 累加器
+
+代码
+
+```scala
+package com.stanlong.spark.core.acc
+
+import org.apache.spark.{SparkConf, SparkContext}
+
+object Spark01_Acc {
+
+    def main(args: Array[String]): Unit = {
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("ACC")
+        val sc = new SparkContext(sparkConf)
+
+        val rdd = sc.makeRDD(List(1, 2, 3, 4))
+
+        // 分区内计算，分区间计算， 过于麻烦
+        // val i = rdd.reduce(_+_)
+
+        // 使用累加计算
+        var sum = 0
+        rdd.foreach(
+            num =>{
+                sum += num
+            }
+        )
+
+        println("sum=" + sum)
+
+        sc.stop()
+    }
+}
+```
+
+代码执行打印结果: 0
+
+在Spark中声明SparkContext的类称为Driver，所以变量sum在Driver中；而任务Task（即分区数据的运算）的执行是在Executor中进行，即sum = sum + num在Executor节点执行；
+
+问题的关键点在于：Executor只是做了运算，但并没有将sum运算后的值返回Driver中，也就是说Driver中的sum变量至始至终都保持初始值为0；如下图所示：
+
+![](./doc/57.png)
+
+此时便可以考虑使用累加器解决上述问题
+
+### 实现原理
+
+累加器用来把Executor 端变量信息聚合到Driver 端。在Driver 程序中定义的变量，在Executor 端的每个Task 都会得到这个变量的一份新的副本，每个 task 更新这些副本的值后， 传回Driver 端进行 merge。
+
+![](./doc/58.png)
+
+```scala
+package com.stanlong.spark.core.acc
+
+import org.apache.spark.{SparkConf, SparkContext}
+
+object Spark01_Acc {
+
+    def main(args: Array[String]): Unit = {
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("ACC")
+        val sc = new SparkContext(sparkConf)
+
+        val rdd = sc.makeRDD(List(1, 2, 3, 4))
+
+        // 分区内计算，分区间计算， 过于麻烦
+        // val i = rdd.reduce(_+_)
+
+        // 使用累加器计算
+        // 获取系统累加器
+        val sumAcc = sc.longAccumulator("sum")
+
+        rdd.foreach(
+            num => {
+                sumAcc.add(num)
+            }
+        )
+        // 输出累加器的值
+        println("sum=" + sumAcc.value)
+
+        // 其他类型的累加器
+        // sc.doubleAccumulator()
+        // sc.collectionAccumulator()
+
+        sc.stop()
+    }
+}
+```
+
+**使用累加器的一些问题**
+
+- 少加：转换算子中调用累加器，如果没有行动算子的话，那么不会执行
+
+  ```scala
+  val rdd = sc.makeRDD(List(1,2,3,4))
+  val mapRDD = rdd.map(  // 这里用的是 map， map是转换算子
+              num => {
+                  // 使用累加器
+                  sumAcc.add(num)
+                  num
+              }
+          )
+   println(sumAcc.value)
+  ```
+
+  输出：0
+
+- 多加：累加器为全局共享变量，多次调用行动算子就会多次执行
+
+  ```scala
+  val sumAcc = sc.longAccumulator("sum")
+          val mapRDD = rdd.map(
+              num => {
+                  // 使用累加器
+                  sumAcc.add(num)
+                  num
+              }
+          )
+          mapRDD.collect()
+          mapRDD.collect()
+          println(sumAcc.value)
+  ```
+
+  输出：20
+
+一般情况下，累加器在行动算子中使用
+
+### 自定义累加器
+
+```scala
+package com.stanlong.spark.core.acc
+
+import org.apache.spark.util.AccumulatorV2
+import org.apache.spark.{SparkConf, SparkContext}
+
+import scala.collection.mutable
+
+object Spark01_Acc {
+
+    def main(args: Array[String]): Unit = {
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("ACC")
+        val sc = new SparkContext(sparkConf)
+
+        val rdd = sc.makeRDD(List("Hello", "Spark", "Hive", "Hello"))
+
+        // 创建累加器对象
+        val wcAcc = new MyAccumulator
+
+        // 向Spark进行注册
+        sc.register(wcAcc)
+
+        // 使用自定义累加器
+        rdd.foreach(
+            word => {
+                wcAcc.add(word)
+            }
+        )
+
+        println(wcAcc.value)
+
+
+
+        sc.stop()
+
+
+    }
+
+    /**
+     *  自定义累加器
+     *  1. 继承 AccumulatorV2, 定义泛型
+     *      IN: 累加器输入的数据类型 String
+     *      OUT: 累加器返回的数据类型 mutable.Map(String, Long)
+     */
+    class MyAccumulator extends AccumulatorV2[String, mutable.Map[String, Long]]{
+
+        private var wcMap = mutable.Map[String, Long]()
+
+        // 判断是否为初始状态
+        override def isZero: Boolean = {
+            wcMap.isEmpty
+        }
+
+        override def copy(): AccumulatorV2[String, mutable.Map[String, Long]] = {
+            new MyAccumulator()
+        }
+
+        override def reset(): Unit = {
+            wcMap.clear()
+        }
+
+        // 获取累加器需要计算的值
+        override def add(word: String): Unit = {
+            val newCnt = wcMap.getOrElse(word, 0L) + 1
+            wcMap.update(word, newCnt)
+        }
+
+        // 合并累加器
+        override def merge(other: AccumulatorV2[String, mutable.Map[String, Long]]): Unit = {
+            val map1 = this.wcMap
+            val map2 = other.value
+
+            map2.foreach{
+                case(word, count) =>{
+                    val newCount = map1.getOrElse(word, 0L) + count
+                    map1.update(word, newCount)
+                }
+            }
+        }
+
+        // 累加器结果
+        override def value: mutable.Map[String, Long] = {
+            wcMap
+        }
+    }
+
+}
+```
+
+## 广播变量
+
+
+
