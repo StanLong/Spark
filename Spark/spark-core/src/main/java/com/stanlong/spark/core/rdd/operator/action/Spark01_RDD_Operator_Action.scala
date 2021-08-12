@@ -16,8 +16,9 @@ object Spark01_RDD_Operator_Action {
         )
         sc.stop()
     }
+
+    class User {
+        var age = 30
+    }
 }
 
-class User {
-    var age = 30
-}
