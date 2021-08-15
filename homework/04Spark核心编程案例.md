@@ -479,5 +479,133 @@ object Spark01_Req_HotCategoryTop10 {
 }
 ```
 
+## 需求 2：Top10 热门品类中每个品类的Top10活跃Session统计
+
+说明: 在需求一的基础上，增加每个品类用户session的点击统计
+
+```scala
+package com.stanlong.spark.core.req
+
+import org.apache.spark.rdd.RDD
+import org.apache.spark.util.AccumulatorV2
+import org.apache.spark.{SparkConf, SparkContext}
+
+import scala.collection.mutable
+
+/**
+ * Top10热门品类
+ */
+object Spark02_Req_HotCategorySessionTop10 {
+
+    def main(args: Array[String]): Unit = {
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("HotCategoryTop10")
+        val sc = new SparkContext(sparkConf)
+
+        val actionRdd = sc.textFile("datas/user_visit_action.txt")
+        actionRdd.cache()
 
 
+        val top10Ids = top10Category(actionRdd)
+
+        // 过滤原始数据， 保留点击和前10品类的ID
+        val filterActionRdd = actionRdd.filter(
+            action => {
+                val datas = action.split("_")
+                if (datas(6) != -1) {
+                    top10Ids.contains(datas(6))
+                } else {
+                    false
+                }
+            }
+        )
+
+
+        // 根据品类ID和sessionID进行点击量的统计
+        val reduceRdd = filterActionRdd.map(
+            action => {
+                val datas = action.split("_")
+                ((datas(6), datas(2)), 1)
+            }
+        ).reduceByKey(_ + _)
+
+
+        // 将统计的结果进行结构的转换
+        // ((品类ID， sessionID), sum) =》(品类ID， (sessionID, sum))
+        val mapRdd = reduceRdd.map {
+            case ((cid, sid), sum) => {
+                (cid, (sid, sum))
+            }
+        }
+
+        // 相同的品类进行分组
+        val groupRdd = mapRdd.groupByKey()
+
+        // 分组后的数据进行点击量的排序，取前10名
+        val resultRdd = groupRdd.mapValues(
+            iter => {
+                iter.toList.sortBy(_._2)(Ordering.Int.reverse).take(10)
+            }
+        )
+
+        resultRdd.collect().foreach(println)
+
+
+
+
+        sc.stop()
+    }
+
+    def top10Category(actionRdd: RDD[String]): Array[(String)] ={
+
+        val flatRdd = actionRdd.flatMap(
+            action => {
+                val datas = action.split("_")
+                if (datas(6) != "-1") {
+                    // 点击的场合
+                    List((datas(6), (1, 0, 0)))
+                } else if (datas(8) != "null") {
+                    // 下单的场合
+                    val ids = datas(8).split(",")
+                    ids.map(id => (id, (0, 1, 0)))
+                } else if (datas(10) != "null") {
+                    // 支付的场合
+                    val ids = datas(10).split(",")
+                    ids.map(id => (id, (0, 0, 1)))
+                } else {
+                    Nil
+                }
+            }
+        )
+
+        val analysisRdd = flatRdd.reduceByKey(
+            (t1, t2) => {
+                (t1._1 + t2._1, t1._2 + t2._2, t1._3 + t2._3)
+            }
+        )
+
+        analysisRdd.sortBy(_._2, false).take(10).map(_._1)
+    }
+}
+```
+
+## 需求 3：页面跳转率统计
+
+**需求说明**
+
+1） 页面单跳转化率
+
+什么是页面单跳转换率，比如一个用户在一次 Session 过程中访问的页面路径 3,5,7,9,10,21，那么页面 3 跳到页
+
+面 5 叫一次单跳，7-9 也叫一次单跳， 那么单跳转化率就是要统计页面点击的概率。比如：计算 3-5 的单跳转化
+
+率，先获取符合条件的 Session 对于页面 3 的访问次数（PV） 为 A，然后获取符合条件的 Session 中访问了页面 
+
+3 又紧接着访问了页面 5 的次数为 B，那么 B/A 就是 3-5 的页面单跳转化率。
+
+![](../doc/62.png)
+
+2） 统计页面单跳转化率意义 
+
+- 产品经理和运营总监，可以根据这个指标，去尝试分析，整个网站，产品，各个页面的表现怎么样，是不是需要去优化产品的布局；吸引用户最终可以进入最后的支付页面。
+- 数据分析师，可以此数据做更深一步的计算和分析。
+- 企业管理层，可以看到整个公司的网站，各个页面的之间的跳转的表现如何，可以适当调整公司的经营战略或策略
