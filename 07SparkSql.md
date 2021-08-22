@@ -1,11 +1,8 @@
 # SparkSql
 
-对于开发人员来讲，SparkSQL 可以简化RDD 的开发，提高开发效率，且执行效率非常快，所以实际工作中，基本上采用的就是 SparkSQL。Spark SQL 为了简化RDD 的开发， 提高开发效率，提供了 2 个编程抽象，类似Spark Core 中的RDD
+对于开发人员来讲，SparkSQL 可以简化RDD 的开发，提高开发效率，且执行效率非常快，所以实际工作中，基本上采用的就是 SparkSQL。Spark SQL 提供了 2 个编程抽象，类似Spark Core 中的RDD: **DataFrame** 、**DataSet**
 
-- DataFrame
-- DataSet
-
-## DataFrame
+>  DataFrame
 
 在 Spark 中，DataFrame 是一种以 RDD 为基础的分布式数据集，类似于传统数据库中的二维表格。DataFrame 与 RDD 的主要区别在于，前者带有 schema 元信息，即 DataFrame 所表示的二维表数据集的每一列都带有名称和类型。这使得 Spark SQL 得以洞察更多的结构信息，从而对藏于 DataFrame 背后的数据源以及作用于 DataFrame 之上的变换进行了针对性的优化，最终达到大幅提升运行时效率的目标。反观 RDD，由于无从得知所存数据元素的具体内部结构，Spark Core 只能在 stage 层面进行简单、通用的流水线优化。
 
@@ -15,7 +12,7 @@ DataFrame 是为数据提供了 Schema 的视图。可以把它当做数据库�
 
 DataFrame 也是懒执行的，但性能上比 RDD 要高，主要原因：优化的执行计划，即查询计划通过 Spark catalyst optimiser 进行优化
 
-## DataSet
+> DataSet
 
 DataSet 是分布式数据集合。DataSet 是Spark 1.6 中添加的一个新抽象，是DataFrame的一个扩展。它提供了RDD 的优势（强类型，使用强大的 lambda 函数的能力）以及SparkSQL 优化执行引擎的优点。DataSet 也可以使用功能性的转换（操作 map，flatMap，filter等等）。
 
@@ -23,7 +20,7 @@ DataSet 是分布式数据集合。DataSet 是Spark 1.6 中添加的一个新抽
 
 - 用户友好的 API 风格，既具有类型安全检查也具有DataFrame 的查询优化特性；
 
-- 用样例类来对DataSet 中定义数据的结构信息，样例类中每个属性的名称直接映射到DataSet 中的字段名称；
+- 用样例类来定义DataSet 中数据的结构信息，样例类中每个属性的名称直接映射到DataSet 中的字段名称；
 
 - DataSet 是强类型的。比如可以有 DataSet[Car]，DataSet[Person]。
 
@@ -52,7 +49,7 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
 1. 查看 Spark 支持创建文件的数据源格式
 
    ```powershell
-   scala> spark.read.
+   scala> spark.read.[tab键补全]
    csv   format   jdbc   json   load   option   options   orc   parquet   schema   table   text   textFile
    ```
 
@@ -94,7 +91,7 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
 
 在后续章节中讨论
 
-## SQL语法
+### SQL语法
 
 1)  读取 JSON 文件创建DataFrame
 
@@ -164,7 +161,7 @@ scala> spark.sql("SELECT * FROM global_temp.user").show()
 #  newSession 只有在配置了全局临时表时才能用
 ```
 
-## DSL 语法
+### DSL 语法
 
 DataFrame 提供一个特定领域语言(domain-specific language, DSL)去管理结构化的数据。可以在 Scala, Java, Python 和 R 中使用 DSL，使用 DSL 语法风格不必去创建临时视图了。
 
@@ -222,7 +219,7 @@ scala> df.select('username, 'age + 1).show()
 +--------+---------+
 ```
 
-5)     查看"age"大于"30"的数据
+5)     查看"age"大于"21"的数据
 
 ```powershell
 scala> df.filter($"age">21).show
@@ -246,7 +243,7 @@ scala> df.groupBy("age").count.show
 +---+-----+
 ```
 
-## RDD 转换为 DataFrame
+### RDD 转换为 DataFrame
 
 在 IDEA 中开发程序时，如果需要RDD 与DF 或者DS 之间互相操作，那么需要引入 import spark.implicits._
 
@@ -267,14 +264,372 @@ scala> rdd.toDF("id").show
 +---+
 ```
 
-## DataFrame转换为RDD
+### DataFrame转换为RDD
 
 ```powershell
 scala> df.rdd
 res14: org.apache.spark.rdd.RDD[org.apache.spark.sql.Row] = MapPartitionsRDD[58] at rdd at <console>:26
 ```
 
+## DataSet
 
+DataSet 是具有强类型的数据集合，需要提供对应的类型信息。
+
+### 创建DataSet
+
+1）	使用样例类序列创建 DataSet
+
+```powershell
+scala> case class Person(name: String, age: Long)
+defined class Person
+
+scala> val list = List(Person("zhangsan", 30), Person("lisi", 40))
+list: List[Person] = List(Person(zhangsan,30), Person(lisi,40))
+
+scala> val ds = list.toDS
+ds: org.apache.spark.sql.Dataset[Person] = [name: string, age: bigint]
+
+scala> ds.show
++--------+---+
+|    name|age|
++--------+---+
+|zhangsan| 30|
+|    lisi| 40|
++--------+---+
+```
+
+2）	使用基本类型的序列创建DataSet
+
+```powershell
+scala> val ds = Seq(1,2,3,4,5).toDS
+ds: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+scala> ds.show
++-----+
+|value|
++-----+
+|    1|
+|    2|
+|    3|
+|    4|
+|    5|
++-----+
+```
+
+
+注意：在实际使用的时候，很少用到把序列转换成DataSet，更多的是通过RDD 来得到DataSet
+
+### DataFrame 和 DataSet转换
+
+```powershell
+scala> val df = spark.read.json("input/user.json")
+df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
+
+scala> df.show
++---+--------+
+|age|username|
++---+--------+
+| 20|zhangsan|
+| 21|    lisi|
+| 22|  wangyu|
++---+--------+
+
+
+scala> case class Emp(age:Long, username:String)
+defined class Emp
+
+scala> val ds = df.as[Emp]
+ds: org.apache.spark.sql.Dataset[Emp] = [age: bigint, username: string]
+
+scala> ds.show
++---+--------+
+|age|username|
++---+--------+
+| 20|zhangsan|
+| 21|    lisi|
+| 22|  wangyu|
++---+--------+
+```
+
+### DataSet 和 DataFrame 转换
+
+```powershell
+scala> ds.toDF
+res7: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
+```
+
+### RDD转换为DataSet
+
+```powershell
+scala> val rdd = sc.makeRDD(List(Emp(30, "zhangsan"), Emp(40,"lisi")))
+rdd: org.apache.spark.rdd.RDD[Emp] = ParallelCollectionRDD[12] at makeRDD at <console>:26
+
+scala> rdd.toDS
+res8: org.apache.spark.sql.Dataset[Emp] = [age: bigint, username: string]
+```
+
+### DataSet 转换为RDD
+
+```powershell
+scala> val rdd = sc.makeRDD(List(Emp(30, "zhangsan"), Emp(40,"lisi")))
+rdd: org.apache.spark.rdd.RDD[Emp] = ParallelCollectionRDD[12] at makeRDD at <console>:26
+
+scala> val ds = rdd.toDS  # RDD 转 DS
+ds: org.apache.spark.sql.Dataset[Emp] = [age: bigint, username: string]
+
+scala> ds.rdd # DS 转 RDD
+res9: org.apache.spark.rdd.RDD[Emp] = MapPartitionsRDD[15] at rdd at <console>:26
+```
+
+## RDD、DataFrame、DataSet 三者的关系
+
+在 SparkSQL 中 Spark 为我们提供了两个新的抽象，分别是 DataFrame 和 DataSet。他们和 RDD 有什么区别呢？首先从版本的产生上来看：
+Spark1.0 => RDD
+
+Spark1.3 => DataFrame
+
+Spark1.6 => Dataset
+如果同样的数据都给到这三个数据结构，他们分别计算之后，都会给出相同的结果。不同是的他们的执行效率和执行方式。在后期的 Spark 版本中，DataSet 有可能会逐步取代RDD和 DataFrame 成为唯一的API 接口。
+
+### 三者的共性
+
+- RDD、DataFrame、DataSet 全都是 spark 平台下的分布式弹性数据集，为处理超大型数据提供便利;
+
+- 三者都有惰性机制，在进行创建、转换，如 map 方法时，不会立即执行，只有在遇到
+  Action 如 foreach 时，三者才会开始遍历运算;
+
+- 三者有许多共同的函数，如 filter，排序等;
+
+- 在对DataFrame 和Dataset 进行操作许多操作都需要这个包:import spark.implicits._（在创建好 SparkSession 对象后尽量直接导入）
+
+- 三者都会根据 Spark 的内存情况自动缓存运算，这样即使数据量很大，也不用担心会内存溢出
+
+- 三者都有 partition 的概念
+
+- DataFrame 和DataSet 均可使用模式匹配获取各个字段的值和类型
+
+### 三者的区别
+
+  1)	RDD
+
+- RDD 一般和 spark mllib 同时使用
+- RDD 不支持 sparksql 操作
+
+2)	DataFrame
+
+- 与 RDD 和 Dataset 不同，DataFrame 每一行的类型固定为Row，每一列的值没法直接访问，只有通过解析才能获取各个字段的值
+
+- DataFrame 与DataSet 一般不与 spark mllib 同时使用
+
+- DataFrame 与DataSet 均支持 SparkSQL 的操作，比如 select，groupby 之类，还能注册临时表/视窗，进行 sql 语句操作
+
+- DataFrame 与DataSet 支持一些特别方便的保存方式，比如保存成 csv，可以带上表头，这样每一列的字段名一目了然(后面专门讲解)
+
+3)	DataSet
+
+- Dataset 和DataFrame 拥有完全相同的成员函数，区别只是每一行的数据类型不同。
+  DataFrame 其实就是DataSet 的一个特例	type DataFrame = Dataset[Row]
+- DataFrame 也可以叫Dataset[Row],每一行的类型是 Row，不解析，每一行究竟有哪些字段，各个字段又是什么类型都无从得知，只能用上面提到的 getAS 方法或者共性中的第七条提到的模式匹配拿出特定字段。而Dataset 中，每一行是什么类型是不一定的，在自定义了 case class 之后可以很自由的获得每一行的信息
+
+### 三者的互相转换
+
+![](./doc/64.png)
+
+# IDEA开发SparkSQL
+
+**添加依赖**
+
+```xml
+<dependency>
+	<groupId>org.apache.spark</groupId>
+	<artifactId>spark-sql_2.12</artifactId>
+	<version>3.0.0</version>
+</dependency>
+```
+
+**代码实现**
+
+```scala
+package com.stanlong.spark.sql
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+
+object Spark01_SparkSql_Basic {
+
+    def main(args: Array[String]): Unit = {
+        // 创建SparkSQl的运行环境
+        val sparkSQLConf = new SparkConf().setMaster("local[*]").setAppName("sparkSQL")
+        val spark = SparkSession.builder().config(sparkSQLConf).getOrCreate()
+        // 在使用DataFrame时，如果涉及到转换操作，需要引入转换规则
+        import spark.implicits._
+
+        // 执行逻辑代码
+        // dataFrame
+        // val dataFrame = spark.read.json("datas/user.json")
+        // dataFrame.show()
+
+        // dataFrame => SQL
+        // dataFrame.createOrReplaceTempView("user")
+        // spark.sql("select * from user").show()
+        // spark.sql("select username from user").show()
+        // spark.sql("select avg(age) as avg_age from user").show()
+
+        // dataFrame => DSL
+        // dataFrame.select("age", "username").show()
+        // dataFrame.select($"age" + 1).show()
+        // dataFrame.select('username, 'age + 1).show()
+
+        // DataSet
+        // val seq = Seq(1,2,3,4)
+        // val ds = seq.toDS()
+        // ds.show()
+
+        // RDD <=> DataFrame
+        var rdd = spark.sparkContext.makeRDD(List((1, "zhangsan", 21), (2, "lisi", 22), (3, "wangwu", 23)))
+        val df = rdd.toDF("id", "name", "age")
+        val rowRdd = df.rdd
+
+        // DataFrame <=> DataSet
+        val ds = df.as[User]
+        val df1 = ds.toDF()
+
+        // RDD <=> DataSet
+        val ds1 = rdd.map {
+            case (id, name, age) => {
+                User(id, name, age)
+            }
+        }.toDS()
+
+        val rdd1 = ds1.rdd
+
+
+        // 关闭环境
+        spark.close()
+    }
+
+    case class User(
+        id:Int,
+        name:String,
+        age:Int
+    )
+}
+```
+
+# 用户自定义函数
+
+用户可以通过 spark.udf 功能添加自定义函数，实现自定义功能。
+
+## UDF
+
+```scala
+package com.stanlong.spark.sql
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
+/**
+ * 自定义函数基础
+ */
+object Spark01_SparkSql_Basic {
+
+    def main(args: Array[String]): Unit = {
+        // 创建SparkSQl的运行环境
+        val sparkSQLConf = new SparkConf().setMaster("local[*]").setAppName("sparkSQL")
+        val spark = SparkSession.builder().config(sparkSQLConf).getOrCreate()
+        // 在使用DataFrame时，如果涉及到转换操作，需要引入转换规则
+        import spark.implicits._
+
+        val df = spark.read.json("datas/user.json")
+        df.createOrReplaceTempView("user")
+
+        // 用户自定义函数
+        spark.udf.register("prefixName", (name:String) =>{
+            "Name: " + name
+        })
+
+        spark.sql("select age, prefixName(username) from user").show()
+
+        // 关闭环境
+        spark.close()
+    }
+}
+```
+
+## UDAF
+
+强类型的Dataset 和弱类型的 DataFrame 都提供了相关的聚合函数， 如 count()，countDistinct()，avg()，max()，min()。除此之外，用户可以设定自己的自定义聚合函数。通过继承 UserDefinedAggregateFunction 来实现用户自定义弱类型聚合函数。从Spark3.0 版本后，UserDefinedAggregateFunction 已经不推荐使用了。可以统一采用强类型聚合函数Aggregator
+
+```scala
+package com.stanlong.spark.sql
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.{Encoder, Encoders, SparkSession, functions}
+import org.apache.spark.sql.expressions.Aggregator
+
+object Spark01_SparkSql_Basic {
+
+    def main(args: Array[String]): Unit = {
+        // 创建SparkSQl的运行环境
+        val sparkSQLConf = new SparkConf().setMaster("local[*]").setAppName("sparkSQL")
+        val spark = SparkSession.builder().config(sparkSQLConf).getOrCreate()
+        // 在使用DataFrame时，如果涉及到转换操作，需要引入转换规则
+        import spark.implicits._
+
+        val df = spark.read.json("datas/user.json")
+        df.createOrReplaceTempView("user")
+
+        // 用户自定义UDAF函数
+        spark.udf.register("ageAvg", functions.udaf(new MyAvgUDAF()))
+
+        spark.sql("select ageAvg(age) from user").show()
+        // 关闭环境
+        spark.close()
+    }
+
+
+    /**
+     * 自定义聚合函数类: 计算年龄的平均值
+     * 1. 继承 org.apache.spark.sql.expressions.Aggregator 定义泛型
+     *  IN: 输入的数据类型
+     *  BUF: 缓冲取的数据类型
+     *  OUT: 输出的数据类型
+     *
+     * 2 .重写方法
+     */
+    case class Buff(var total:Long, var count:Long)
+    class MyAvgUDAF extends  Aggregator[Long, Buff, Long] {
+        // 初始化
+        override def zero: Buff = {
+            Buff(0L, 0L)
+        }
+
+        // 根据输入的数据更新缓冲取的数据
+        override def reduce(buff: Buff, in: Long): Buff = {
+            buff.total = buff.total + in
+            buff.count = buff.count + 1
+            buff
+        }
+
+        // 合并缓冲区
+        override def merge(buff1: Buff, buff2: Buff): Buff = {
+            buff1.total = buff1.total + buff2.total
+            buff1.count = buff1.count + buff2.count
+            buff1
+        }
+
+        // 计算结果
+        override def finish(buff: Buff): Long = {
+            buff.total / buff.count
+        }
+
+        // 缓冲区的编码操作
+        override def bufferEncoder: Encoder[Buff] = Encoders.product
+
+        // 输出的编码操作
+        override def outputEncoder: Encoder[Long] = Encoders.scalaLong
+    }
+}
+```
 
 
 
