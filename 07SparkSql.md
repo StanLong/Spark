@@ -63,7 +63,7 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
 
 3.  读取 json 文件创建DataFrame
 
-    ```powershell
+   ```powershell
    scala> val df = spark.read.json("input/user.json")
    df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
    ```
@@ -83,7 +83,7 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
    +---+--------+
    ```
 
-**二、从 RDD 进行转换 **
+**二、从 RDD 进行转换**
 
 在后续章节中讨论
 
