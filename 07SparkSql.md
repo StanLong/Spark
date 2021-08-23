@@ -44,7 +44,7 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
 
 在 Spark SQL 中 SparkSession 是创建DataFrame 和执行 SQL 的入口，创建 DataFrame 有三种方式：通过Spark 的数据源进行创建；从一个存在的RDD 进行转换；还可以从HiveTable 进行查询返回。
 
-1)    **从 Spark 数据源进行创建**
+**一、从 Spark 数据源进行创建**
 
 1. 查看 Spark 支持创建文件的数据源格式
 
@@ -63,10 +63,10 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
 
 3.  读取 json 文件创建DataFrame
 
-     ```powershell
+    ```powershell
    scala> val df = spark.read.json("input/user.json")
    df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
-    ```
+   ```
    
    注意：如果从内存中获取数据，spark 可以知道数据类型具体是什么。如果是数字，默认作为 Int 处理；但是从文件中读取的数字，不能确定是什么类型，所以用 bigint 接收，可以和Long 类型转换，但是和 Int 不能进行转换
    
@@ -83,11 +83,11 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
    +---+--------+
    ```
 
-2)    **从 RDD 进行转换**
+**二、从 RDD 进行转换 **
 
 在后续章节中讨论
 
-3)    **从 Hive Table 进行查询返回**
+**三、从 Hive Table 进行查询返回**
 
 在后续章节中讨论
 
@@ -118,6 +118,28 @@ sqlDF: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
 
 ```powershell
 scala> sqlDF.show
++---+--------+
+|age|username|
++---+--------+
+| 20|zhangsan|
+| 21|    lisi|
+| 22|  wangyu|
++---+--------+
+```
+
+5)  直接读 json 文件数据
+
+```powershell
+scala> spark.sql("select * from json.`input/user.json`").show
+21/08/23 22:54:23 WARN HiveConf: HiveConf of name hive.stats.jdbc.timeout does not exist
+21/08/23 22:54:23 WARN HiveConf: HiveConf of name hive.stats.retries.wait does not exist
+21/08/23 22:54:24 WARN General: Plugin (Bundle) "org.datanucleus.api.jdo" is already registered. Ensure you dont have multiple JAR versions of the same plugin in the classpath. The URL "file:/D:/StanLong/ProgramFiles/spark-3.0.0-bin-hadoop2.7/jars/datanucleus-api-jdo-4.2.4.jar" is already registered, and you are trying to register an identical plugin located at URL "file:/D:/StanLong/ProgramFiles/spark-3.0.0-bin-hadoop2.7/bin/../jars/datanucleus-api-jdo-4.2.4.jar."
+21/08/23 22:54:24 WARN General: Plugin (Bundle) "org.datanucleus" is already registered. Ensure you dont have multiple JAR versions of the same plugin in the classpath. The URL "file:/D:/StanLong/ProgramFiles/spark-3.0.0-bin-hadoop2.7/jars/datanucleus-core-4.1.17.jar" is already registered, and you are trying to register an identical plugin located at URL "file:/D:/StanLong/ProgramFiles/spark-3.0.0-bin-hadoop2.7/bin/../jars/datanucleus-core-4.1.17.jar."
+21/08/23 22:54:24 WARN General: Plugin (Bundle) "org.datanucleus.store.rdbms" is already registered. Ensure you dont have multiple JAR versions of the same plugin in the classpath. The URL "file:/D:/StanLong/ProgramFiles/spark-3.0.0-bin-hadoop2.7/jars/datanucleus-rdbms-4.1.19.jar" is already registered, and you are trying to register an identical plugin located at URL "file:/D:/StanLong/ProgramFiles/spark-3.0.0-bin-hadoop2.7/bin/../jars/datanucleus-rdbms-4.1.19.jar."
+21/08/23 22:54:37 WARN ObjectStore: Version information not found in metastore. hive.metastore.schema.verification is not enabled so recording the schema version 2.3.0
+21/08/23 22:54:37 WARN ObjectStore: setMetaStoreSchemaVersion called but recording version is disabled: version = 2.3.0, comment = Set by MetaStore UNKNOWN@192.168.2.102
+21/08/23 22:54:38 WARN ObjectStore: Failed to get database global_temp, returning NoSuchObjectException
+21/08/23 22:54:38 WARN ObjectStore: Failed to get database json, returning NoSuchObjectException
 +---+--------+
 |age|username|
 +---+--------+
@@ -165,83 +187,83 @@ scala> spark.sql("SELECT * FROM global_temp.user").show()
 
 DataFrame 提供一个特定领域语言(domain-specific language, DSL)去管理结构化的数据。可以在 Scala, Java, Python 和 R 中使用 DSL，使用 DSL 语法风格不必去创建临时视图了。
 
-1)     创建一个DataFrame
+1. 创建一个DataFrame
 
-```powershell
-scala> val df = spark.read.json("input/user.json")
-df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
-```
+   ```powershell
+   scala> val df = spark.read.json("input/user.json")
+   df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
+   ```
 
-2)    查看DataFrame 的 Schema 信息
+2. 查看DataFrame 的 Schema 信息
 
-```powershell
-scala> df.printSchema
-root
- |-- age: long (nullable = true)
- |-- username: string (nullable = true)
-```
+   ```powershell
+   scala> df.printSchema
+   root
+    |-- age: long (nullable = true)
+    |-- username: string (nullable = true)
+   ```
 
-3)     只查看"username"列数据
+3. 只查看"username"列数据
 
-```powershell
-scala> df.select("username").show()
-+--------+
-|username|
-+--------+
-|zhangsan|
-|    lisi|
-|  wangyu|
-+--------+
-```
+   ```powershell
+   scala> df.select("username").show()
+   +--------+
+   |username|
+   +--------+
+   |zhangsan|
+   |    lisi|
+   |  wangyu|
+   +--------+
+   ```
 
-4)    查看"username"列数据以及"age+1"数据
+4. 查看"username"列数据以及"age+1"数据
 
- 注意:涉及到运算的时候, 每列都必须使用$, 或者采用引号表达式：单引号+字段名
+    注意:涉及到运算的时候, 每列都必须使用$, 或者采用引号表达式：单引号+字段名
 
-```powershell
-scala> df.select($"username",$"age" + 1).show
-+--------+---------+
-|username|(age + 1)|
-+--------+---------+
-|zhangsan|       21|
-|    lisi|       22|
-|  wangyu|       23|
-+--------+---------+
+   ```powershell
+   scala> df.select($"username",$"age" + 1).show
+   +--------+---------+
+   |username|(age + 1)|
+   +--------+---------+
+   |zhangsan|       21|
+   |    lisi|       22|
+   |  wangyu|       23|
+   +--------+---------+
+   
+   
+   scala> df.select('username, 'age + 1).show()
+   +--------+---------+
+   |username|(age + 1)|
+   +--------+---------+
+   |zhangsan|       21|
+   |    lisi|       22|
+   |  wangyu|       23|
+   +--------+---------+
+   ```
 
+5. 查看"age"大于"21"的数据
 
-scala> df.select('username, 'age + 1).show()
-+--------+---------+
-|username|(age + 1)|
-+--------+---------+
-|zhangsan|       21|
-|    lisi|       22|
-|  wangyu|       23|
-+--------+---------+
-```
+   ```powershell
+   scala> df.filter($"age">21).show
+   +---+--------+
+   |age|username|
+   +---+--------+
+   | 22|  wangyu|
+   +---+--------+
+   ```
 
-5)     查看"age"大于"21"的数据
+6. 按照"age"分组，查看数据条数
 
-```powershell
-scala> df.filter($"age">21).show
-+---+--------+
-|age|username|
-+---+--------+
-| 22|  wangyu|
-+---+--------+
-```
-
-6)    按照"age"分组，查看数据条数
-
-```powershell
-scala> df.groupBy("age").count.show
-+---+-----+
-|age|count|
-+---+-----+
-| 22|    1|
-| 21|    1|
-| 20|    1|
-+---+-----+
-```
+   ```powershell
+   scala> df.groupBy("age").count.show
+   +---+-----+
+   |age|count|
+   +---+-----+
+   | 22|    1|
+   | 21|    1|
+   | 20|    1|
+   +---+-----+
+   ```
 
 ### RDD 转换为 DataFrame
 
@@ -557,7 +579,7 @@ object Spark01_SparkSql_Basic {
 
 ## UDAF
 
-强类型的Dataset 和弱类型的 DataFrame 都提供了相关的聚合函数， 如 count()，countDistinct()，avg()，max()，min()。除此之外，用户可以设定自己的自定义聚合函数。通过继承 UserDefinedAggregateFunction 来实现用户自定义弱类型聚合函数。从Spark3.0 版本后，UserDefinedAggregateFunction 已经不推荐使用了。可以统一采用强类型聚合函数Aggregator
+强类型的Dataset 和弱类型的 DataFrame 都提供了相关的聚合函数， 如 count()，countDistinct()，avg()，max()，min()。除此之外，用户可以设定自己的自定义聚合函数。通过继承 UserDefinedAggregateFunction 来实现用户自定义弱类型聚合函数。从Spark3.0 版本后，UserDefinedAggregateFunction 已经不推荐使用了（用顺序做计算，容易出错）。可以统一采用强类型聚合函数Aggregator（通过属性来操作， 和顺序无关）。 
 
 ```scala
 package com.stanlong.spark.sql
@@ -630,6 +652,161 @@ object Spark01_SparkSql_Basic {
     }
 }
 ```
+
+# 数据的加载和保存
+
+## 通用的加载和保存方式
+
+SparkSQL 提供了通用的保存数据和数据加载的方式。这里的通用指的是使用相同的API，根据不同的参数读取和保存不同格式的数据，SparkSQL 默认读取和保存的文件格式为 parquet
+
+### 加载数据
+
+spark.read.load 是加载数据的通用方法， 如果读取不同格式的数据，可以对不同的数据格式进行设定。
+
+```powershell
+# 默认读取的是 parquet 文件
+scala> val df = spark.read.load("../examples/src/main/resources/users.parquet")
+df: org.apache.spark.sql.DataFrame = [name: string, favorite_color: string ... 1 more field]
+
+scala> df.show
++------+--------------+----------------+
+|  name|favorite_color|favorite_numbers|
++------+--------------+----------------+
+|Alyssa|          null|  [3, 9, 15, 20]|
+|   Ben|           red|              []|
++------+--------------+----------------+
+```
+
+### 保存数据
+
+```powershell
+scala> df.write.save("output") # 默认保存的也是 parquet 文件
+```
+
+![](./doc/65.png)
+
+### 格式转换
+
+```
+scala>df.write.format("…")[.option("…")].save("…")
+```
+
+- format("…")：指定保存的数据类型，包括"csv"、"jdbc"、"json"、"orc"、"parquet"和 "textFile"。
+
+-  save ("…")：在"csv"、"orc"、"parquet"和"textFile"格式下需要传入保存数据的路径。
+- option("…")：在"jdbc"格式下需要传入 JDBC 相应参数，url、user、password 和 dbtable
+
+保存操作可以使用 SaveMode, 用来指明如何处理数据，使用 mode()方法来设置。有一点很重要: 这些 SaveMode 都是没有加锁的, 也不是原子操作。
+
+SaveMode 是一个枚举类，其中的常量包括：
+
+| Scala/Java                      | Any Language     | Meaning                    |
+| ------------------------------- | ---------------- | -------------------------- |
+| SaveMode.ErrorIfExists(default) | "error"(default) | 如果文件已经存在则抛出异常 |
+| SaveMode.Append                 | "append"         | 如果文件已经存在则追加     |
+| SaveMode.Overwrite              | "overwrite"      | 如果文件已经存在则覆盖     |
+| SaveMode.Ignore                 | "ignore"         | 如果文件已经存在则忽略     |
+
+```powershell
+# 加载
+scala> val df = spark.read.format("json").load("input/user.json") # format 格式转换
+df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
+
+scala> df.show
++---+--------+
+|age|username|
++---+--------+
+| 20|zhangsan|
+| 21|    lisi|
+| 22|  wangyu|
++---+--------+
+
+# 保存
+scala> df.write.format("json").save("output1") # 保存为son格式
+scala> df.write.format("json").mode("overwrite").save("output1") # 保存为son格式,并覆盖已有的文件
+```
+
+## CSV
+
+Spark SQL 可以配置 CSV 文件的列表信息，读取CSV 文件,CSV 文件的第一行设置为数据列
+
+```powershell
+scala> spark.read.format("csv").option("sep", ";").option("inferSchema","true").option("header", "true").load("../examples/src/main/resources/people.csv").show
++-----+---+---------+
+| name|age|      job|
++-----+---+---------+
+|Jorge| 30|Developer|
+|  Bob| 32|Developer|
++-----+---+---------+
+```
+
+## MySQL
+
+Spark SQL 可以通过 JDBC 从关系型数据库中读取数据的方式创建DataFrame，通过对DataFrame 一系列的计算后，还可以将数据再写回关系型数据库中。如果使用 spark-shell 操作，可在启动shell 时指定相关的数据库驱动路径或者将相关的数据库驱动放到 spark 的类路径下。
+
+```
+bin/spark-shell --jars mysql-connector-java-5.1.27-bin.jar
+```
+
+我们这里只演示在Idea 中通过 JDBC 对 Mysql 进行操作
+
+- 导入依赖
+
+  ```xml
+  <dependency>
+  	<groupId>mysql</groupId>
+  	<artifactId>mysql-connector-java</artifactId>
+  	<version>5.1.37</version>
+  </dependency>
+  ```
+
+- spark代码
+
+  ```scala
+  package com.stanlong.spark.sql
+  
+  import org.apache.spark.SparkConf
+  import org.apache.spark.sql.{SaveMode, SparkSession}
+  
+  object Spark02_SparkSql_JDBC {
+  
+      def main(args: Array[String]): Unit = {
+          // 创建SparkSQl的运行环境
+          val sparkSQLConf = new SparkConf().setMaster("local[*]").setAppName("sparkSQL")
+          val spark = SparkSession.builder().config(sparkSQLConf).getOrCreate()
+          // 在使用DataFrame时，如果涉及到转换操作，需要引入转换规则
+          import spark.implicits._
+  
+          // 读取mysql数据
+          val df = spark.read.format("jdbc")
+            .option("url", "jdbc:mysql://127.0.0.1:3306/mysql")
+            .option("driver", "com.mysql.jdbc.Driver")
+            .option("user", "root")
+            .option("password", "root")
+            .option("dbtable", "user")
+            .load()
+  
+          df.show()
+  
+          // 保存数据到mysql
+          df.write.format("jdbc")
+            .option("url", "jdbc:mysql://127.0.0.1:3306/mysql")
+            .option("driver", "com.mysql.jdbc.Driver")
+            .option("user", "root")
+            .option("password", "root")
+            .option("dbtable", "scoot") // 把df中的内容保存到一张新表，表明 scoot
+            .mode(SaveMode.Append)
+            .save()
+  
+  
+          // 关闭环境
+          spark.close()
+      }
+  
+  }
+  ```
+
+## Hive
 
 
 
