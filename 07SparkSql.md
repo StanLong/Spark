@@ -61,15 +61,15 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
    {"username":"wangyu","age":22}
    ```
 
-3.  读取 json 文件创建DataFrame
+3. 读取 json 文件创建DataFrame
 
    ```powershell
    scala> val df = spark.read.json("input/user.json")
    df: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
    ```
-   
+
    注意：如果从内存中获取数据，spark 可以知道数据类型具体是什么。如果是数字，默认作为 Int 处理；但是从文件中读取的数字，不能确定是什么类型，所以用 bigint 接收，可以和Long 类型转换，但是和 Int 不能进行转换
-   
+
 4. 展示结果
 
    ```powershell
@@ -794,7 +794,7 @@ bin/spark-shell --jars mysql-connector-java-5.1.27-bin.jar
             .option("driver", "com.mysql.jdbc.Driver")
             .option("user", "root")
             .option("password", "root")
-            .option("dbtable", "scoot") // 把df中的内容保存到一张新表，表明 scoot
+            .option("dbtable", "scoot") // 把df中的内容保存到一张新表，表名 scoot
             .mode(SaveMode.Append)
             .save()
   
@@ -808,9 +808,121 @@ bin/spark-shell --jars mysql-connector-java-5.1.27-bin.jar
 
 ## Hive
 
+Apache Hive 是 Hadoop 上的 SQL 引擎，Spark SQL 编译时可以包含 Hive  支持，也可以不包含。包含 Hive 支持的 Spark SQL 可以支持 Hive 表访问、UDF (用户自定义函数)以及 Hive 查询语言(HiveQL/HQL)等。需要强调的一点是，如果要在 Spark SQL 中包含Hive 的库，并不需要事先安装 Hive。一般来说，最好还是在编译 Spark SQL 时引入 Hive 支持，这样就可以使用这些特性了。如果你下载的是二进制版本的 Spark，它应该已经在编译时添加了 Hive 支持。
 
+若要把 Spark SQL 连接到一个部署好的 Hive  上，你必须把 hive-site.xml 复制到
 
+Spark 的配置文件目录中($SPARK_HOME/conf)。即使没有部署好 Hive，Spark SQL 也可以运行。 需要注意的是，如果你没有部署好 Hive，Spark SQL 会在当前的工作目录中创建出自己的 Hive 元数据仓库，叫作 metastore_db。此外，如果你尝试使用 HiveQL 中的CREATE TABLE (并非 CREATE EXTERNAL TABLE)语句来创建表，这些表会被放在你默认的文件系统中的 /user/hive/warehouse 目录中(如果你的 classpath 中有配好的
+hdfs-site.xml，默认的文件系统就是 HDFS，否则就是本地文件系统)。
 
+spark-shell 默认是Hive 支持的；代码中是默认不支持的，需要手动指定（加一个参数即可）。
+
+### 内嵌的HIVE 
+
+如果使用 Spark 内嵌的 Hive, 则什么都不用做, 直接使用即可.
+
+Hive 的元数据存储在 derby 中, 默认仓库地址:$SPARK_HOME/spark-warehouse
+
+```shell
+scala> spark.sql("show tables").show
+。。。
++--------+---------+-----------+
+|database|tableName|isTemporary|
++--------+---------+-----------+
++--------+---------+-----------+
+
+scala> spark.sql("create table aa(id int)")
+
+。。。
+
+scala> spark.sql("show tables").show
++--------+---------+-----------+
+|database|tableName|isTemporary|
++--------+---------+-----------+
+| default|	aa|	false|
++--------+---------+-----------+
+```
+
+向表加载本地数据
+
+```shell
+scala> spark.sql("load data local inpath 'input/ids.txt' into table aa")
+
+。。。
+
+scala> spark.sql("select * from aa").show
++---+
+| id|
++---+
+| 1|
+| 2|
+| 3|
+| 4|
++---+
+```
+
+在实际使用中, 几乎没有任何人会使用内置的 Hive
+
+### 外部的HIVE
+
+如果想连接外部已经部署好的Hive，需要通过以下几个步骤：
+
+- Spark 要接管 Hive 需要把hive-site.xml 拷贝到conf/目录下
+- 把 Mysql 的驱动 copy 到 jars/目录下
+- 如果访问不到 hdfs，则需要把 core-site.xml 和 hdfs-site.xml 拷贝到 conf/目录下
+- 重启 spark-shell
+
+这里启动报了一个错
+
+```
+Caused by: org.apache.hadoop.hive.metastore.api.MetaException: Hive Schema version 2.3.0 does not match metastore's schema version 1.2.0 Metastore is not upgraded or corrupt
+```
+
+参考: https://blog.csdn.net/qq_27882063/article/details/79886935
+
+解决方案
+1. 登陆mysql， 修改hive metastore版本
+
+  ```mysql
+  mysql> user hive;
+  mysql> select * from VERSION;
+  +--------+----------------+--------------------------------------+
+  | VER_ID | SCHEMA_VERSION | VERSION_COMMENT                      |
+  +--------+----------------+--------------------------------------+
+  |      1 | 1.2.0          | Set by MetaStore root@192.168.235.11 |
+  +--------+----------------+--------------------------------------+
+  mysql> update VERSION set SCHEMA_VERSION='2.1.1' where VER_ID = 1;
+  ```
+
+2. 在 hive-site.xml中关闭版本验证
+
+  ```xml
+  <property>
+   <name>hive.metastore.schema.verification</name>
+   <value>false</value>
+  </property>
+  ```
+
+这里用第一种方法
+
+### 运行Spark SQL CLI
+
+Spark SQL CLI 可以很方便的在本地运行Hive 元数据服务以及从命令行执行查询任务。在Spark 目录下执行如下命令启动 Spark SQL CLI，直接执行 SQL 语句，类似一Hive 窗口
+
+### 运行 Spark beeline
+
+Spark Thrift Server 是Spark 社区基于HiveServer2 实现的一个Thrift 服务。旨在无缝兼容HiveServer2。因为 Spark Thrift Server 的接口和协议都和HiveServer2 完全一致，因此我们部署好 Spark Thrift Server 后，可以直接使用hive 的 beeline 访问Spark Thrift Server 执行相关语句。Spark Thrift Server 的目的也只是取代HiveServer2，因此它依旧可以和 Hive Metastore 进行交互，获取到hive 的元数据。
+如果想连接Thrift Server，需要通过以下几个步骤：
+
+- Spark 要接管 Hive 需要把hive-site.xml 拷贝到conf/目录下
+
+- 把 Mysql 的驱动 copy 到 jars/目录下
+
+- 如果访问不到 hdfs，则需要把 core-site.xml 和 hdfs-site.xml 拷贝到 conf/目录下
+
+- 启动Thrift Server
+
+  
 
 
 
