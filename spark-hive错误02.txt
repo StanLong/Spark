@@ -1,0 +1,22 @@
+hive ≥ı ºªØ±®¥Ì
+
+[root@node01 bin]# schematool -dbType mysql -initSchema
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/opt/stanlong/hadoop-ha/hadoop-2.9.2/share/hadoop/common/lib/slf4j-log4j12-1.7.25.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/opt/stanlong/hive/apache-tez-0.9.1-bin/lib/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/opt/stanlong/hadoop-ha/hadoop-2.9.2/share/hadoop/common/lib/slf4j-log4j12-1.7.25.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/opt/stanlong/hive/apache-tez-0.9.1-bin/lib/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.slf4j.impl.Log4jLoggerFactory]
+21/08/27 05:10:41 WARN conf.HiveConf: HiveConf of name hive.metastore.local does not exist
+Metastore connection URL:	 jdbc:mysql://192.168.235.11:3306/hivedb?createDatabaseIfNotExist=true
+Metastore Connection Driver :	 com.mysql.jdbc.Driver
+Metastore connection User:	 root
+Starting metastore schema initialization to 1.2.0
+Initialization script hive-schema-1.2.0.mysql.sql
+Error: Duplicate entry '1' for key 'PRIMARY' (state=23000,code=1062)
+org.apache.hadoop.hive.metastore.HiveMetaException: Schema initialization FAILED! Metastore state would be inconsistent !!
+*** schemaTool failed ***
