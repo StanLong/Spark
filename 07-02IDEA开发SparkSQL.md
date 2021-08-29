@@ -407,76 +407,33 @@ scala> spark.sql("select * from aa").show
 - 把 Mysql 的驱动 copy 到 jars/目录下
 - 如果访问不到 hdfs，则需要把 core-site.xml 和 hdfs-site.xml 拷贝到 conf/目录下
 - 重启 spark-shell
+- 可能出现的报错见 09错误日志记录.md
 
-**这里启动报了一个错**
-
+```shell
+scala> spark.sql("show databases").show
+21/08/29 18:34:35 WARN HiveConf: HiveConf of name hive.metastore.local does not exist
+21/08/29 18:34:35 WARN HiveClientImpl: Detected HiveConf hive.execution.engine is 'tez' and will be reset to 'mr' to disable useless hive logic
+21/08/29 18:34:42 WARN HiveConf: HiveConf of name hive.metastore.local does not exist
+21/08/29 18:34:42 WARN HiveConf: HiveConf of name hive.stats.jdbc.timeout does not exist
+21/08/29 18:34:42 WARN HiveConf: HiveConf of name hive.stats.retries.wait does not exist
+21/08/29 18:34:46 WARN HiveConf: HiveConf of name hive.metastore.local does not exist
+21/08/29 18:34:49 ERROR ObjectStore: Version information found in metastore differs 1.2.0 from expected schema version 2.3.0. Schema verififcation is disabled hive.metastore.schema.verification
+21/08/29 18:34:49 WARN ObjectStore: setMetaStoreSchemaVersion called but recording version is disabled: version = 2.3.0, comment = Set by MetaStore root@192.168.235.11
++---------+
+|namespace|
++---------+
+|  default|
++---------+
 ```
-Caused by: org.apache.hadoop.hive.metastore.api.MetaException: Hive Schema version 2.3.0 does not match metastore's schema version 1.2.0 Metastore is not upgraded or corrupt
-```
-
-参考: https://blog.csdn.net/qq_27882063/article/details/79886935
-
-解决方案
-
-方案一: 登陆mysql， 修改hive metastore版本
-
-  ```mysql
-  mysql> user hive;
-  mysql> select * from VERSION;
-  +--------+----------------+--------------------------------------+
-  | VER_ID | SCHEMA_VERSION | VERSION_COMMENT                      |
-  +--------+----------------+--------------------------------------+
-  |      1 | 1.2.0          | Set by MetaStore root@192.168.235.11 |
-  +--------+----------------+--------------------------------------+
-  mysql> update VERSION set SCHEMA_VERSION='2.3.0' where VER_ID = 1;
-  ```
-
-方案二: 在 hive-site.xml中关闭版本验证
-
-  ```xml
-  <property>
-   <name>hive.metastore.schema.verification</name>
-   <value>false</value>
-  </property>
-  ```
-
-第一种方法重启后就失效了，这里用第二种方法
-
-**又报了第二个错**
-
-```
-21/08/25 06:49:04 WARN Query: Query for candidates of org.apache.hadoop.hive.metastore.model.MConstraint and subclasses resulted in no possible candidates Required table missing : "`KEY_CONSTRAINTS`" in Catalog "" Schema "". DataNucleus requires this table to perform its persistence operations. Either your MetaData is incorrect, or you need to enable "datanucleus.schema.autoCreateTables"
-org.datanucleus.store.rdbms.exceptions.MissingTableException: Required table missing : "`KEY_CONSTRAINTS`" in Catalog "" Schema "". DataNucleus requires this table to perform its persistence operations. Either your MetaData is incorrect, or you need to enable "datanucleus.schema.autoCreateTables"
-```
-
-参考连接:
-
-https://blog.csdn.net/BoomHankers/article/details/78925460
-
-1. Go to the $HIVE_HOME and run the initschema option on the schematool:
-
-   ```shell
-   [root@node01 bin]# pwd
-   /opt/stanlong/hive/apache-hive-1.2.2-bin/bin
-   [root@node01 bin]# schematool -dbType mysql -initSchema
-   
-   ```
-
-2. 修改hive配置，允许自己建表建视图
-
-   ```xml
-   <property>
-       <!-- <name>datanucleus.schema.autoCreateTables</name> -->
-       <name>datanucleus.autoCreateTables</name>
-       <value>true</value>
-   </property>
-   ```
-
-   然后重启
 
 ### 运行Spark SQL CLI
 
 Spark SQL CLI 可以很方便的在本地运行Hive 元数据服务以及从命令行执行查询任务。在Spark 目录下执行如下命令启动 Spark SQL CLI，直接执行 SQL 语句，类似一Hive 窗口
+
+```shell
+[root@node01 bin]# ./spark-sql 
+spark-sql (default)> 
+```
 
 ### 运行 Spark beeline
 
@@ -484,11 +441,75 @@ Spark Thrift Server 是Spark 社区基于HiveServer2 实现的一个Thrift 服�
 如果想连接Thrift Server，需要通过以下几个步骤：
 
 - Spark 要接管 Hive 需要把hive-site.xml 拷贝到conf/目录下
-
 - 把 Mysql 的驱动 copy 到 jars/目录下
-
 - 如果访问不到 hdfs，则需要把 core-site.xml 和 hdfs-site.xml 拷贝到 conf/目录下
-
 - 启动Thrift Server
+
+```shell
+[root@node01 sbin]# pwd
+/opt/stanlong/spark-local/sbin
+[root@node01 sbin]# ./start-thriftserver.sh
+
+[root@node01 bin]# pwd
+/opt/stanlong/spark-local/bin
+[root@node01 bin]# beeline -u "jdbc:hive2://node01:10000"  -n root -p root
+```
+
+### 代码操作hive
+
+1. 导入依赖
+
+   ```xml
+   <!-- spark操作外部hive用到的包 -->
+   <dependency>
+       <groupId>org.apache.spark</groupId>
+       <artifactId>spark-hive_2.12</artifactId>
+       <version>3.0.0</version>
+   </dependency>
+   
+   <dependency>
+       <groupId>org.apache.hive</groupId>
+       <artifactId>hive-exec</artifactId>
+       <version>1.2.1</version>
+   </dependency>
+   ```
+
+2. 将hive-site.xml 文件拷贝到项目的 resources 目录中
+
+   ![](./doc/66.png)
+
+3. 代码实现
+
+   ```scala
+   package com.stanlong.spark.sql
+   
+   import org.apache.spark.SparkConf
+   import org.apache.spark.sql.SparkSession
+   
+   object Spark03_SparkSql_Hive {
+   
+       def main(args: Array[String]): Unit = {
+           // 创建SparkSQl的运行环境
+           val sparkSQLConf = new SparkConf().setMaster("local[*]").setAppName("sparkSQL")
+           val spark = SparkSession.builder().enableHiveSupport().config(sparkSQLConf).getOrCreate() // enableHiveSupport() 启用hive支持
+           // 在使用DataFrame时，如果涉及到转换操作，需要引入转换规则
+           import spark.implicits._
+   
+           // 使用SparkSQl 连接外置的hive
+           // 1.拷贝hive-site到resource目录下
+           // 2.启动hive支持
+           // 3.导入依赖包
+           System.setProperty("HADOOP_USER_NAME", "root") // 防止访问数据库时报权限错误
+           spark.sql("show tables").show()
+           
+           // 关闭环境
+           spark.close()
+       }
+   }
+   ```
+
+   
+
+
 
   
