@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+    <!-- 设置了四个节点，副本数设为2 -->
+    <property>
+        <name>dfs.replication</name>
+        <value>2</value>
+    </property>
+    <!-- HA模式不需要规划secondaryName -->
+    <!-- <property>
+        <name>dfs.namenode.secondary.http-address</name>
+        <value>node02:50090</value>
+    </property> -->
+    <!-- 配置逻辑到物理的映射 -->
+    <!-- namenode HA集群的别名 -->
+    <property>
+        <name>dfs.nameservices</name>
+        <value>hacluster</value>
+    </property>
+    <!-- HA集群下的两个namenode的别名nn1,nn2 -->
+    <property>
+        <name>dfs.ha.namenodes.hacluster</name>
+        <value>nn1,nn2</value>
+    </property>
+    <!-- RPC通信的地址 -->
+    <property>
+        <name>dfs.namenode.rpc-address.hacluster.nn1</name>
+        <value>node01:8020</value>
+    </property>
+    <property>
+        <name>dfs.namenode.rpc-address.hacluster.nn2</name>
+        <value>node04:8020</value>
+    </property>
+    <!-- http通信地址 -->
+    <property>
+        <name>dfs.namenode.http-address.hacluster.nn1</name>
+        <value>node01:50070</value>
+    </property>
+    <property>
+        <name>dfs.namenode.http-address.hacluster.nn2</name>
+        <value>node04:50070</value>
+    </property>
+
+    <!-- 配置JNN -->
+    <property>
+        <name>dfs.namenode.shared.edits.dir</name>
+        <value>qjournal://node02:8485;node03:8485;node04:8485/hacluster</value>
+    </property>
+    <!-- journalNode 存放edit.log文件的路径 -->
+    <property>
+        <name>dfs.journalnode.edits.dir</name>
+        <value>/var/data/hadoop/ha/jnn</value>
+    </property>
+
+    <!-- 故障切换实现代理的方法 -->
+    <property>
+        <name>dfs.client.failover.proxy.provider.hacluster</name>
+        <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+    </property>
+    <!-- zkfc进程进行回调需要免秘钥 -->
+    <property>
+        <name>dfs.ha.fencing.methods</name>
+        <value>sshfence</value>
+    </property>
+    <!-- zkfc进程进行回调需要免秘钥，私钥路径 -->
+    <property>
+        <name>dfs.ha.fencing.ssh.private-key-files</name>
+        <value>/root/.ssh/id_dsa</value>
+    </property>
+    <!-- 开启zookeeper的自动故障转移功能 -->
+    <property>
+        <name>dfs.ha.automatic-failover.enabled</name>
+        <value>true</value>
+    </property>
+
+
+</configuration>

@@ -2,9 +2,9 @@
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
 
-	<!-- 配置hive文件在hdfs上的保存路径 -->
+    <!-- 配置hive文件在hdfs上的保存路径 -->
     <property>
-        <name>hive.metastore.warehouse.dir</name>  
+        <name>hive.metastore.warehouse.dir</name>
         <value>/user/hivedb/warehouse</value>
     </property>
     <property>
@@ -12,16 +12,19 @@
         <!-- 单用户模式下值为 false -->
         <value>false</value>
     </property>
+
+    <!-- 元数据库的链接地址 mysql -->
     <property>
-        <!-- 元数据库的链接地址 mysql -->
-        <name>javax.jdo.option.ConnectionURL</name>  
+        <name>javax.jdo.option.ConnectionURL</name>
         <value>jdbc:mysql://192.168.235.11:3306/hivedb?createDatabaseIfNotExist=true</value>
     </property>
+
     <property>
         <!-- 指定mysql驱动 -->
         <name>javax.jdo.option.ConnectionDriverName</name>
         <value>com.mysql.jdbc.Driver</value>
     </property>
+
     <property>
         <!-- 指定mysql用户名 -->
         <name>javax.jdo.option.ConnectionUserName</name>
@@ -31,32 +34,47 @@
         <name>javax.jdo.option.ConnectionPassword</name>
         <value>root</value>
     </property>
-	
-	<!-- 表头信息配置 -->
-	<property>
-		<name>hive.cli.print.header</name>
-		<value>true</value>
-	</property>
 
-	<!-- 显示当前数据库 -->
-	<property>
-		<name>hive.cli.print.current.db</name>
-		<value>true</value>
-	</property>
+    <!-- 表头信息配置 -->
+    <property>
+        <name>hive.cli.print.header</name>
+        <value>true</value>
+    </property>
 
-	<property>
-    		<name>hive.execution.engine</name>
-	       <value>tez</value>
-	</property>
-  	
-	<!-- 关闭metastore版本验证 -->
-	<property>
-   		<name>hive.metastore.schema.verification</name>
-   		<value>false</value>
-  	</property>
-	<!-- 允许自己建表建视图 -->
-	<property>
-    		<name>datanucleus.schema.autoCreateTables</name>
-    		<value>true</value>
-	</property>
+    <!-- 显示当前数据库 -->
+    <property>
+        <name>hive.cli.print.current.db</name>
+        <value>true</value>
+    </property>
+
+    <!--
+    <property>
+        <name>hive.execution.engine</name>
+        <value>tez</value>
+    </property> -->
+
+    <!-- 关闭metastore版本验证 -->
+    <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>false</value>
+    </property>
+    <!-- 允许自己建表建视图 -->
+    <property>
+        <name>datanucleus.schema.autoCreateTables</name>
+        <value>true</value>
+    </property>
+
+
+    <!-- 指定hiveserver2连接的host -->
+    <property>
+        <name>hive.server2.thrift.bind.host</name>
+        <value>node01</value>
+    </property>
+    <!-- 指定hiveserver2连接的端口号 -->
+    <property>
+        <name>hive.server2.thrift.port</name>
+        <value>10000</value>
+    </property>
+
+
 </configuration>
