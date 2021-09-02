@@ -98,3 +98,197 @@ object SparkStreaming01_WordCount {
 先启动 netcat， 再启动程序。程序启动后通过cmd界面发送数据
 
 ![](./doc/71.png)
+
+# DStream创建
+
+## RDD 队列
+
+测试过程中，可以通过使用 ssc.queueStream(queueOfRDDs)来创建 DStream，每一个推送到这个队列中的RDD，都会作为一个DStream 处理。
+
+### 需求
+
+循环创建几个 RDD，将RDD 放入队列。通过 SparkStream 创建 Dstream，计算 WordCount
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+import scala.collection.mutable
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 创建环境对象
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+        // 创建RDD队列
+        val rddQueue = new mutable.Queue[RDD[Int]]()
+
+        // 创建QueueInputStream
+        val inputStream = ssc.queueStream(rddQueue, false)
+
+        val mappedStream = inputStream.map((_, 1))
+        val reduceStream = mappedStream.reduceByKey(_ + _)
+
+        // 打印结果
+        reduceStream.print()
+
+        // 1. 启动采集器
+        ssc.start()
+
+        // 循环创建并向RDD队列中加入RDD
+        for(i <- 1 to 5){
+            rddQueue += ssc.sparkContext.makeRDD(1 to 300, 10)
+            Thread.sleep(2000)
+        }
+
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+}
+```
+
+## 自定义数据源
+
+需要继承Receiver，并实现 onStart、onStop 方法来自定义数据源采集
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
+import org.apache.spark.streaming.receiver.Receiver
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+import scala.collection.mutable
+import scala.util.Random
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 创建环境对象
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+        val messageDS = ssc.receiverStream(new MyReceiver)
+        messageDS.print()
+
+
+        // 1. 启动采集器
+        ssc.start()
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+
+    /**
+     * 自定义数据采集器
+     * 1. 继承 Receiver 定义泛型
+     * 2. 重写方法
+     */
+    class MyReceiver extends Receiver[String](StorageLevel.MEMORY_ONLY){
+
+        private var flag = true
+
+        override def onStart(): Unit = {
+            new Thread(new Runnable {
+                override def run(): Unit = {
+                    while (flag){
+                        val message = "采集的数据为: " + new Random().nextInt(10).toString
+                        store(message)
+                        Thread.sleep(500)
+                    }
+                }
+            }).start()
+        }
+
+        override def onStop(): Unit = {
+            flag = false
+        }
+    }
+
+}
+```
+
+## Kafka 数据源
+
+**Kafka 0-10 Direct模式**：是由计算的Executor 来主动消费Kafka 的数据，速度由自身控制
+
+### 需求
+
+通过 SparkStreaming 从Kafka 读取数据，并将读取过来的数据做简单计算，最终打印到控制台
+
+### 实现
+
+导入依赖
+
+```xml
+<dependency>
+    <groupId>org.apache.spark</groupId>
+    <artifactId>spark-streaming-kafka-0-10_2.12</artifactId>
+    <version>3.0.0</version>
+</dependency>
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-core</artifactId>
+    <version>2.10.1</version
+</dependency>
+```
+
+代码实现
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 创建环境对象
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+
+        //3.定义 Kafka 参数
+        val kafkaPara: Map[String, Object] = Map[String, Object](
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> "node02:9092,node03:9092,node04:9092",
+            ConsumerConfig.GROUP_ID_CONFIG -> "spark-kafka",
+            "key.deserializer" ->  "org.apache.kafka.common.serialization.StringDeserializer",
+            "value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer"
+        )
+
+
+        val kafkaDataDS = KafkaUtils.createDirectStream[String, String]( // k,v都是String类型
+            ssc,
+            LocationStrategies.PreferConsistent,
+            ConsumerStrategies.Subscribe[String, String](Set("spark-kafka"), kafkaPara)
+        ) // spark-kafka 为 topic名称
+
+        kafkaDataDS.map(_.value()).print()
+
+
+        // 1. 启动采集器
+        ssc.start()
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+}
+```
+
+### 验证
+
+kafka的相关操作参考  Hadoop/17Kafka
+
+![](./doc/72.png)
+

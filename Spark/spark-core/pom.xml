@@ -44,13 +44,23 @@
             <version>1.2.1</version>
         </dependency>
 
+        <!-- SparkStreaming用到的包 -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-streaming_2.12</artifactId>
             <version>3.0.0</version>
         </dependency>
 
-
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-streaming-kafka-0-10_2.12</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.10.1</version>
+        </dependency>
 
     </dependencies>
 
