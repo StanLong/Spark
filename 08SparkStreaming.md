@@ -292,3 +292,311 @@ kafka的相关操作参考  Hadoop/17Kafka
 
 ![](./doc/72.png)
 
+# DStream转换
+
+DStream 上的操作与 RDD 的类似，分为Transformations（转换）和Output Operations（输出）两种，此外转换操作中还有一些比较特殊的原语，如：updateStateByKey()、transform()以及各种Window 相关的原语。
+
+## Transform
+
+Transform 允许 DStream 上执行任意的RDD-to-RDD 函数。即使这些函数并没有在DStream 的 API 中暴露出，通过该函数可以方便的扩展 Spark API。该函数每一批次调度一次。其实也就是对 DStream 中的 RDD 应用转换
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 环境准备
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+        val lines = ssc.socketTextStream("localhost", 9999)
+
+        // transform方法可以将底层RDD获取到后进行操作
+        // 应用场景：1.补充DStream功能， 2. 需要代码周期性执行
+        val newDS = lines.transform(
+            rdd => {
+                rdd.map(
+                    str => {
+                        str
+                    }
+                )
+            }
+        )
+
+        val newDS1 = lines.map(
+            data => {
+                data
+            }
+        )
+
+        // 1. 启动采集器
+        ssc.start()
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+}
+```
+
+## 无状态转化操作
+
+无状态转化操作就是把简单的RDD 转化操作应用到每个批次上，也就是转化DStream 中的每一个RDD。部分无状态转化操作列在了下表中。注意，针对键值对的DStream 转化操作(比如reduceByKey())要添加 import StreamingContext._ 才能在 Scala 中使用。
+
+![](./doc/73.png)
+
+## 有状态转化操作
+
+### UpdateStateByKey
+
+UpdateStateByKey 原语用于记录历史记录，有时，我们需要在 DStream 中跨批次维护状态(例如流计算中累加wordcount)。针对这种情况，updateStateByKey()为我们提供了对一个状态变量的访问，用于键值对形式的 DStream。给定一个由(键，事件)对构成的 DStream，并传递一个指定如何根据新的事件更新每个键对应状态的函数，它可以构建出一个新的 DStream，其内部数据为(键，状态) 对。
+
+updateStateByKey() 的结果会是一个新的DStream，其内部的RDD 序列是由每个时间区间对应的(键，状态)对组成的。
+
+updateStateByKey 操作使得我们可以在用新信息进行更新时保持任意的状态。为使用这个功能，需要做下面两步：
+
+1. 定义状态，状态可以是一个任意的数据类型。
+2. 定义状态更新函数，用此函数阐明如何使用之前的状态和来自输入流的新值对状态进行更新。
+
+使用 updateStateByKey 需要对检查点目录进行配置，会使用检查点来保存状态。
+
+更新版的wordcount
+
+#### 代码
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 环境准备
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+        // 使用有状态转化操作需要设置检查点路径
+        ssc.checkpoint("cp")
+
+        // 无状态转化操作，只对当前的采集周期内的数据进行处理
+        // val datas = ssc.socketTextStream("localhost", 9999)
+        // val wordToOne = datas.map((_, 1))
+        // val wordCount = wordToOne.reduceByKey(_ + _)
+        // wordCount.print()
+
+        // 有状态转化操作
+        val datas = ssc.socketTextStream("localhost", 9999)
+        val wordToOne = datas.map((_, 1))
+        // updateStateByKey 根据key对数据的状态进行更新
+        // (seq, opt) // 参数一：相同可以的value数据，参数二：缓冲区中相同key的value数据
+        val state = wordToOne.updateStateByKey(
+            (seq: Seq[Int], buff: Option[Int]) => {
+                val newCount = buff.getOrElse(0) + seq.sum
+                Option(newCount)
+            }
+        )
+
+        state.print()
+
+        // 1. 启动采集器
+        ssc.start()
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+}
+```
+
+#### 测试
+
+![](./doc/74.png)
+
+## WindowOperations
+
+Window Operations 可以设置窗口的大小和滑动窗口的间隔来动态的获取当前Steaming 的允许状态。所有基于窗口的操作都需要两个参数，分别为窗口时长以及滑动步长。
+
+- 窗口时长：计算内容的时间范围；
+- 滑动步长：隔多久触发一次计算。
+
+注意：这两者都必须为采集周期大小的整数倍。
+
+WordCount 第三版：3 秒一个批次，窗口 6 秒，滑步 6 秒。
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 环境准备
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+        val lines = ssc.socketTextStream("localhost", 9999)
+        val wordToOne = lines.map((_, 1))
+
+        // 窗口的范围应该是采集周期的整数倍
+        // 窗口可以滑动，但是默认情况下，一个采集周期进行滑动，这样的化可能会出现重复的计算
+        // 为了避免这种情况，可以改变滑动的步长
+        val windowDS = wordToOne.window(Seconds(6), Seconds(6)) // (窗口时长, 滑动步长)
+        val wordToCount = windowDS.reduceByKey(_ + _)
+        wordToCount.print()
+
+        // 1. 启动采集器
+        ssc.start()
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+}
+```
+
+关于Window 的操作还有如下方法：
+
+（1）window(windowLength, slideInterval): 基于对源DStream 窗化的批次进行计算返回一个新的Dstream；
+（2）countByWindow(windowLength, slideInterval): 返回一个滑动窗口计数流中的元素个数；
+
+（3）reduceByWindow(func, windowLength, slideInterval): 通过使用自定义函数整合滑动区间流元素来创建一个新的单元素流；
+（4）reduceByKeyAndWindow(func, windowLength, slideInterval, [numTasks]): 当在一个(K,V) 对的DStream 上调用此函数，会返回一个新(K,V)对的 DStream，此处通过对滑动窗口中批次数据使用 reduce 函数来整合每个 key 的 value 值。
+（5）reduceByKeyAndWindow(func, invFunc, windowLength, slideInterval, [numTasks]): 这个函数是上述函数的变化版本，每个窗口的 reduce 值都是通过用前一个窗的 reduce 值来递增计算。通过 reduce 进入到滑动窗口数据并”反向 reduce”离开窗口的旧数据来实现这个操作。一个例子是随着窗口滑动对keys 的“加”“减”计数。通过前边介绍可以想到，这个函数只适用于”可逆的 reduce 函数”，也就是这些 reduce 函数有相应的”反 reduce”函数(以参数 invFunc 形式传入)。如前述函数，reduce 任务的数量通过可选参数来配置。
+
+# DStream 输出
+
+输出操作指定了对流数据经转化操作得到的数据所要执行的操作(例如把结果推入外部数据库或输出到屏幕上)。与RDD 中的惰性求值类似，如果一个 DStream 及其派生出的DStream 都没有被执行输出操作，那么这些DStream 就都不会被求值。如果 StreamingContext 中没有设定输出操作，整个context 就都不会启动。
+
+输出操作如下： 
+
+- print()：在运行流程序的驱动结点上打印DStream 中每一批次数据的最开始 10 个元素。这用于开发和调试。在 Python API 中，同样的操作叫 print()。
+
+- saveAsTextFiles(prefix, [suffix])：以 text 文件形式存储这个 DStream 的内容。每一批次的存储文件名基于参数中的 prefix 和 suffix。”prefix-Time_IN_MS[.suffix]”。
+
+- saveAsObjectFiles(prefix, [suffix])：以 Java 对象序列化的方式将 Stream 中的数据保存为SequenceFiles . 每一批次的存储文件名基于参数中的为"prefix-TIME_IN_MS[.suffix]". Python 中目前不可用。
+
+- saveAsHadoopFiles(prefix, [suffix])：将 Stream 中的数据保存为 Hadoop files. 每一批次的存储文件名基于参数中的为"prefix-TIME_IN_MS[.suffix]"。Python API 中目前不可用。
+
+- foreachRDD(func)：这是最通用的输出操作，即将函数 func 用于产生于 stream 的每一个RDD。其中参数传入的函数 func 应该实现将每一个RDD 中数据推送到外部系统，如将RDD 存入文件或者通过网络将其写入数据库。
+
+通用的输出操作foreachRDD()，它用来对DStream 中的 RDD 运行任意计算。这和 transform() 有些类似，都可以让我们访问任意RDD。在 foreachRDD()中，可以重用我们在 Spark 中实现的所有行动操作。比如，常见的用例之一是把数据写到诸如 MySQL 的外部数据库中。
+
+注意：
+
+1)     连接不能写在 driver 层面（序列化）
+
+2)     如果写在 foreach 则每个 RDD 中的每一条数据都创建，得不偿失；
+
+3)     增加 foreachPartition，在分区创建（获取）。
+
+# 优雅关闭
+
+流式任务需要 7*24 小时执行，但是有时涉及到升级代码需要主动停止程序，但是分布式程序，没办法做到一个个进程去杀死，所有配置优雅的关闭就显得至关重要了。
+
+使用外部文件系统来控制内部程序关闭
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext, StreamingContextState}
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 环境准备
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+        val lines = ssc.socketTextStream("localhost", 9999)
+        val wordToOne = lines.map((_, 1))
+
+        // 窗口的范围应该是采集周期的整数倍
+        // 窗口可以滑动，但是默认情况下，一个采集周期进行滑动，这样的化可能会出现重复的计算
+        // 为了避免这种情况，可以改变滑动的步长
+        val windowDS = wordToOne.window(Seconds(6), Seconds(6)) // (窗口时长, 滑动步长)
+        val wordToCount = windowDS.reduceByKey(_ + _)
+        wordToCount.print()
+
+        // 1. 启动采集器
+        ssc.start()
+
+        // 如果想要关闭采集器，需要创建新的线程
+        // 而且需要在第三方的程序中增加关闭状态，如mysql，redis， hdfs等
+        new Thread(
+            new Runnable {1
+                override def run(): Unit ={
+                    // 计算节点不再接收新的数据，而是将现有的数据处理完毕，然后关闭
+                    // ssc.stop(true, true)
+
+                    // 模拟
+                    Thread.sleep(5000)
+                    val state = ssc.getState()
+                    if(state == StreamingContextState.ACTIVE) {
+                        ssc.stop(true, true)
+                    }
+
+                }
+            }
+        ).start()
+
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+
+    }
+}
+```
+
+## 重启后数据的恢复
+
+```scala
+package com.stanlong.spark.streaming
+
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext, StreamingContextState}
+
+object SparkStreaming01_WordCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 设置数据从检查点恢复
+        val ssc = StreamingContext.getActiveOrCreate("cp", () => {
+            // 环境准备
+            val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+            val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+            val lines = ssc.socketTextStream("localhost", 9999)
+            val wordToOne = lines.map((_, 1))
+
+            // 窗口的范围应该是采集周期的整数倍
+            // 窗口可以滑动，但是默认情况下，一个采集周期进行滑动，这样的化可能会出现重复的计算
+            // 为了避免这种情况，可以改变滑动的步长
+            val windowDS = wordToOne.window(Seconds(6), Seconds(6)) // (窗口时长, 滑动步长)
+            val wordToCount = windowDS.reduceByKey(_ + _)
+            wordToCount.print()
+            ssc
+        })
+
+        ssc.checkpoint("cp")
+
+        // 1. 启动采集器
+        ssc.start()
+        
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+
+    }
+}
+```
+
