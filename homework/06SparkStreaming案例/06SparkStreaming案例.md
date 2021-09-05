@@ -319,7 +319,7 @@ object SparkStreaming03_Req1_BlackList {
                 // 判断点击用户是否在黑名单中
                 val filterRdd = rdd.filter(
                     data => {
-                        !blackList.contains(data.userid)
+                        !blackList.contains(data.userid) // 过滤掉黑名单中的用户
                     }
                 )
 
@@ -330,17 +330,11 @@ object SparkStreaming03_Req1_BlackList {
                         val day = sdf.format(new Date(data.ts.toLong))
                         val user = data.userid
                         val ad = data.adid
-
                         ((day, user, ad), 1)
                     }
-                ).reduceByKey(_ + _)
+                ).reduceByKey(_+_)
             }
-
         )
-
-
-
-
 
         // 业务逻辑处理
         ds.foreachRDD(
@@ -363,8 +357,8 @@ object SparkStreaming03_Req1_BlackList {
                 rdd.foreach{ // 每循环一次会创建一个连接对象，性能不高
                     case((day, user, ad), count) =>{
                         println(s"${day} ${user} ${ad} ${count}")
+                        // 如果统计数量超过了点击阈值，则将用户拉入黑名单
                         if(count>=30){
-                            // 如果统计数量超过了点击阈值，则将用户拉入黑名单
                             val conn = JdbcUtil.getConnection
                             val sql =
                                 """
@@ -387,7 +381,8 @@ object SparkStreaming03_Req1_BlackList {
                             if(flag){
                                 // 查询统计表数据，如果存在则更新，判断更新后的点击数量是否超过阈值
                                 val sql = """
-                                            |update user_ad_count set count=? where dt=? and userid=? and adid=?
+                                            |update user_ad_count set count= count + ?
+                                            |where dt=? and userid=? and adid=?
                                             |""".stripMargin
                                 JdbcUtil.executeUpdate(conn, sql, Array(count, day, user, ad))
 
@@ -400,7 +395,7 @@ object SparkStreaming03_Req1_BlackList {
                                 if(flag2){
                                     val sql3 = """
                                                  |insert into black_list (userid) values(?)
-                                                 |on DUPLICATE_KEY
+                                                 |on DUPLICATE KEY
                                                  |UPDATE userid=?
                                                  |""".stripMargin
                                     JdbcUtil.executeUpdate(conn, sql3, Array(user, user))
@@ -449,7 +444,7 @@ object JdbcUtil {
     def init(): DataSource = {
         val properties = new Properties()
         properties.setProperty("driverClassName", "com.mysql.jdbc.Driver")
-        properties.setProperty("url", "jdbc:mysql://node01:3306/gmall")
+        properties.setProperty("url", "jdbc:mysql://node01:3306/gmall?useUnicode=true&characterEncoding=UTF-8")
         properties.setProperty("username", "root")
         properties.setProperty("password", "root")
         properties.setProperty("maxActive", "50")
@@ -506,3 +501,127 @@ object JdbcUtil {
 }
 ```
 
+## 需求二：广告点击量实时统计
+
+描述：实时统计每天各地区各城市各广告的点击总流量，并将其存入MySQL
+
+### 思路分析
+
+- 单个批次内对数据进行按照天维度的聚合统计;
+- 结合 MySQL 数据跟当前批次数据更新原有的数据
+
+### MySQL 建表
+
+```mysql
+CREATE TABLE area_city_ad_count (
+    dt VARCHAR(255),
+    area VARCHAR(255), 
+    city VARCHAR(255), 
+    adid VARCHAR(255),
+    count BIGINT,
+    PRIMARY KEY (dt,area,city,adid)
+);
+```
+
+### 代码实现
+
+```scala
+package com.stanlong.spark.streaming
+
+import java.text.SimpleDateFormat
+import java.util.Date
+
+import com.stanlong.spark.util.JdbcUtil
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+
+import scala.collection.mutable.ListBuffer
+
+
+object SparkStreaming04_Req2_AdCount {
+
+    def main(args: Array[String]): Unit = {
+
+        // 创建环境对象
+        val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkString")
+        val ssc = new StreamingContext(sparkConf, Seconds(3)) // (环境配置， 采集周期)  这里设置每3秒采集一次
+
+
+        //3.定义 Kafka 参数
+        val kafkaPara: Map[String, Object] = Map[String, Object](
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> "node02:9092,node03:9092,node04:9092",
+            ConsumerConfig.GROUP_ID_CONFIG -> "spark-kafka",
+            "key.deserializer" ->  "org.apache.kafka.common.serialization.StringDeserializer",
+            "value.deserializer" -> "org.apache.kafka.common.serialization.StringDeserializer"
+        )
+
+
+        val kafkaDataDS = KafkaUtils.createDirectStream[String, String]( // k,v都是String类型
+            ssc,
+            LocationStrategies.PreferConsistent,
+            ConsumerStrategies.Subscribe[String, String](Set("spark-kafka"), kafkaPara) // spark-kafka 为 topic名称
+        )
+
+        val adClickData = kafkaDataDS.map(
+            kafkaData => {
+                val data = kafkaData.value()
+                val datas = data.split(" ")
+                AdClickData(datas(0), datas(1), datas(2), datas(3), datas(4))
+            }
+        )
+
+        val reduceDS = adClickData.map(
+            data => {
+                val sdf = new SimpleDateFormat("yyyy-MM-dd")
+                val day = sdf.format(new Date(data.ts.toLong))
+                val area = data.area
+                val city = data.city
+                val ad = data.adid
+                ((day, area, city, ad), 1)
+            }
+        ).reduceByKey(_ + _)
+
+        reduceDS.foreachRDD(
+            rdd => {
+                rdd.foreachPartition(
+                    iter => {
+                        val conn = JdbcUtil.getConnection
+                        val sql =
+                            """
+                              |insert into area_city_ad_count (dt,area,city,adid,count)
+                              |values(?,?,?,?,?)
+                              |on DUPLICATE KEY
+                              |UPDATE count = count + ?
+                              |""".stripMargin
+                        iter.foreach{
+                            case ((day, area, city, ad), sum) => {
+                                println(s"${day} ${area} ${city} ${ad} ${sum}")
+                                JdbcUtil.executeUpdate(conn, sql, Array(day, area, city, ad, sum, sum))
+                            }
+
+                        }
+                        conn.close()
+                    }
+                )
+            }
+        )
+
+        // 1. 启动采集器
+        ssc.start()
+        // 2. 等待采集器的关闭
+        ssc.awaitTermination()
+    }
+
+    // 广告点击数据样例类
+    case class AdClickData(ts:String, area:String, city:String, userid:String, adid:String)
+}
+```
+
+## 需求三：最近一小时广告点击量
+
+### 思路分析 
+
+- 开窗确定时间范围；
+- 在窗口内将数据转换数据结构为((adid,hm),count); 3）按照广告 id 进行分组处理，组内按照时分排序

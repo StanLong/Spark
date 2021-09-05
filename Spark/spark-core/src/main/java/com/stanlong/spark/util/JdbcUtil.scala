@@ -14,7 +14,7 @@ object JdbcUtil {
     def init(): DataSource = {
         val properties = new Properties()
         properties.setProperty("driverClassName", "com.mysql.jdbc.Driver")
-        properties.setProperty("url", "jdbc:mysql://node01:3306/gmall")
+        properties.setProperty("url", "jdbc:mysql://node01:3306/gmall?useUnicode=true&characterEncoding=UTF-8")
         properties.setProperty("username", "root")
         properties.setProperty("password", "root")
         properties.setProperty("maxActive", "50")

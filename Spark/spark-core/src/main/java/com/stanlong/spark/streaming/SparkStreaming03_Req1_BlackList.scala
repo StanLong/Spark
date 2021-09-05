@@ -64,7 +64,7 @@ object SparkStreaming03_Req1_BlackList {
                 // 判断点击用户是否在黑名单中
                 val filterRdd = rdd.filter(
                     data => {
-                        !blackList.contains(data.userid)
+                        !blackList.contains(data.userid) // 过滤掉黑名单中的用户
                     }
                 )
 
@@ -75,17 +75,11 @@ object SparkStreaming03_Req1_BlackList {
                         val day = sdf.format(new Date(data.ts.toLong))
                         val user = data.userid
                         val ad = data.adid
-
                         ((day, user, ad), 1)
                     }
-                ).reduceByKey(_ + _)
+                ).reduceByKey(_+_)
             }
-
         )
-
-
-
-
 
         // 业务逻辑处理
         ds.foreachRDD(
@@ -108,8 +102,8 @@ object SparkStreaming03_Req1_BlackList {
                 rdd.foreach{ // 每循环一次会创建一个连接对象，性能不高
                     case((day, user, ad), count) =>{
                         println(s"${day} ${user} ${ad} ${count}")
+                        // 如果统计数量超过了点击阈值，则将用户拉入黑名单
                         if(count>=30){
-                            // 如果统计数量超过了点击阈值，则将用户拉入黑名单
                             val conn = JdbcUtil.getConnection
                             val sql =
                                 """
@@ -132,7 +126,8 @@ object SparkStreaming03_Req1_BlackList {
                             if(flag){
                                 // 查询统计表数据，如果存在则更新，判断更新后的点击数量是否超过阈值
                                 val sql = """
-                                            |update user_ad_count set count=? where dt=? and userid=? and adid=?
+                                            |update user_ad_count set count= count + ?
+                                            |where dt=? and userid=? and adid=?
                                             |""".stripMargin
                                 JdbcUtil.executeUpdate(conn, sql, Array(count, day, user, ad))
 
@@ -145,7 +140,7 @@ object SparkStreaming03_Req1_BlackList {
                                 if(flag2){
                                     val sql3 = """
                                                  |insert into black_list (userid) values(?)
-                                                 |on DUPLICATE_KEY
+                                                 |on DUPLICATE KEY
                                                  |UPDATE userid=?
                                                  |""".stripMargin
                                     JdbcUtil.executeUpdate(conn, sql3, Array(user, user))
