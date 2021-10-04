@@ -148,7 +148,7 @@ object Spark01_WordCount {
         val words = lines.flatMap(_.split(" ")) // 获取一行一行的数据,扁平化操作：将数据按空格隔开
         val wordGroup = words.groupBy(word => word) // 根据单词进行分组， 便于统计
         val wordToCount = wordGroup.map{ // 对分组后的数据进行转换
-            case(word, list) =>{
+            case(word, list) =>{ // 这里用到了元组匹配，省略了 lambda 表达式， 参见Scala\13模式匹配.md
                 (word, list.size)
             }
         }

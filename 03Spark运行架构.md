@@ -119,11 +119,17 @@ Client 模式将用于监控和调度的Driver 模块在客户端执行，而不
 Cluster 模式将用于监控和调度的 Driver 模块启动在Yarn 集群资源中执行。一般应用于实际生产环境。
 
 - 在 YARN Cluster 模式下，任务提交后会和ResourceManager 通讯申请启动ApplicationMaster
-
 - 随后ResourceManager 分配 container，在合适的 NodeManager 上启动 ApplicationMaster，此时的 ApplicationMaster 就是Driver。
-
 - Driver 启动后向 ResourceManager 申请Executor 内存，ResourceManager 接到ApplicationMaster 的资源申请后会分配container，然后在合适的NodeManager 上启动Executor 进程
-
 - Executor 进程启动后会向Driver 反向注册，Executor 全部注册完成后Driver 开始执行main 函数
-
 - 之后执行到 Action 算子时，触发一个 Job，并根据宽依赖开始划分 stage，每个stage 生成对应的TaskSet，之后将 task 分发到各个Executor 上执行。
+
+# Spark计算框架
+
+Spark 计算框架为了能够进行高并发和高吞吐的数据处理，封装了三大数据结构，用于处理不同的应用场景。三大数据结构分别是：
+
+- RDD : 弹性分布式数据集
+
+- 累加器：分布式共享只写变量
+
+- 广播变量：分布式共享只读变量
