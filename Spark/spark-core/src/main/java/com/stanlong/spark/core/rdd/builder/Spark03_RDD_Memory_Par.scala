@@ -15,9 +15,18 @@ object Spark03_RDD_Memory_Par {
         // 创建RDD
         // RDD 的并行度&分区
         // makeRDD 参数一表示序列，参数二表示分区的数量，不传表示使用默认值，默认值和CPU核数相同。
-        val rdd = sc.makeRDD(
-            List(1,2,3,4), 2
-        )
+        val rdd = sc.makeRDD(List(1,2,3,4), 2)
+
+        // 计算数据分区位置的源码
+        // (0 until numSlices).iterator.map{ i =>
+        //     val start = ((i * length)/numSlices).toInt
+        //     val end = (((i+1) * length)/numSlices).toInt
+        //     (start, end)
+        // }
+        // 以 rdd = sc.makeRDD(List(1,2,3,4), 2) 的分区数据为例
+        // part-00000 中的数据是 1, 2 。 part-00001 中的数据是3,4
+        // 套用源码，length=4, numSlices = 2
+
 
         // 将处理的数据保存成分区文件
         rdd.saveAsTextFile("output")
