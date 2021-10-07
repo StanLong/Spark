@@ -36,6 +36,7 @@ object Spark03_WordCount {
     }
 
     // groupByKey
+    // groupByKey 有 shuffle 操作，效率不高
     def wordCount2(sc:SparkContext) :Unit={
         val rdd = sc.makeRDD(List("Hello Scala", "Hello Spark"))
         val words = rdd.flatMap(_.split(" "))

@@ -118,13 +118,11 @@
    
            // 7.采集数据打印到控制台
            resultRdd.collect().foreach(println)
-   
-   
-   
+           
            sc.stop()
        }
    }
    ```
-
+   
    
 
