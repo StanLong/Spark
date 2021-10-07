@@ -8,14 +8,10 @@ object Spark01_RDD_Operator_Transform {
         val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
         val sc = new SparkContext(sparkConf)
 
-        //
-        val rdd = sc.makeRDD(List(List(1,2), 3,  List(4,5)) )
-        val flatRdd = rdd.flatMap {
-                    
-                    case list: List[_] => list
-                    case dat => List(dat)
-                }
-        flatRdd.collect().foreach(println)
+        val rdd1 = sc.makeRDD(List(("a", 1), ("b", 2), ("c", 3), ("c", 7)))
+        val rdd2 = sc.makeRDD(List(("a", 4), ("b", 5), ("c", 6), ("d", 6)))
+        val coRdd = rdd1.cogroup(rdd2)
+        coRdd.collect().foreach(println)
 
 
 
