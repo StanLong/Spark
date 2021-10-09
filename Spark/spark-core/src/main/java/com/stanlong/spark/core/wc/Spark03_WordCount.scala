@@ -111,6 +111,7 @@ object Spark03_WordCount {
                 mutable.Map[String, Long]((word, 1))
             }
         )
+        println(mapWord.collect().foreach(println))
         val wordCount = mapWord.reduce(
             (map1, map2) => {
                 map2.foreach{

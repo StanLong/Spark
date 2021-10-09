@@ -7,8 +7,11 @@ object Spark01_RDD_Operator_Action {
         val sparkConf = new SparkConf().setMaster("local[*]").setAppName("RDD")
         val sc = new SparkContext(sparkConf)
 
-        // 算子 -》map
         val rdd = sc.makeRDD(List(1, 2, 3, 4))
+
+        // 算子 -》map
+        println(rdd.map(_ * 2))
+
         // reduce 聚合
         val result = rdd.reduce(_ + _)
         println(result)
