@@ -42,29 +42,11 @@ GraphX 是 Spark 面向图计算提供的框架与算法库。
 
 **新建一个mavne工程**
 
-![](./doc/03.png)
+![](./doc/08-1.png)
 
-![](./doc/04.png)
+**增加scala插件并添加框架支持**
 
-![](./doc/05.png)
-
-![](./doc/06.png)
-
-![](./doc/07.png)
-
-![](./doc/08.png)
-
-**增加scala插件**
-
-![](./doc/09.png)
-
-![](./doc/10.png)
-
-**添加框架支持**
-
-![](./doc/11.png)
-
-![](./doc/12.png)
+见 Framework\Idea\04配置插件.md
 
 **新建scala程序测试环境是否ok**
 
@@ -328,8 +310,4 @@ log4j.logger.org.apache.hadoop.hive.ql.exec.FunctionRegistry=ERROR
 
 在 IDEA 中配置Run Configuration，添加HADOOP_HOME 变量
 
-![](./doc/18.png)
-
-![](./doc/19.png)
-
-![](./doc/20.png)
+配置步骤见 Framework\Idea\05配置环境变量.md
