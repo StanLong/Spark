@@ -55,10 +55,12 @@ object Spark01_Req_HotCategoryTop10 {
         // 2019-07-17_63_837f7970-3f77-4337-812c-c1e790ca05b7_39_2019-07-17 00:05:24_null_-1_-1_13,17,14,11_1,88,94_null_null_14
 
         // 统计品类的点击数量
+        // datas(6) 商品品类的 ID
+        // 如果点击的品类 ID 和产品 ID 为-1，表示数据不是点击数据
         val clickActionRdd = actionRdd.filter(
             action => {
                 val datas = action.split("_")
-                datas(6) != "-1"
+                datas(6) != "-1" 
             }
         )
 
@@ -70,6 +72,8 @@ object Spark01_Req_HotCategoryTop10 {
         ).reduceByKey(_+_)
 
         // 统计品类的下单数量
+        // datas(8) 订单中所有品类的 ID 集合
+        // 如果不是下单行为，则数据采用 null 表示
         val orderActionRdd = actionRdd.filter(
             action => {
                 var datas = action.split("_")
@@ -77,16 +81,18 @@ object Spark01_Req_HotCategoryTop10 {
             }
         )
 
+        // 下单品类 ID 之间采用逗号分隔， 需要对数据做扁平化操作
         val orderCountRdd = orderActionRdd.flatMap(
             action => {
                 val datas = action.split("_")
                 val cid = datas(8)
-                val cids = cid.split(",")
+                val cids = cid.split(",") 
                 cids.map(id => (id, 1))
             }
         ).reduceByKey(_+_)
 
         // 统计品类的支付数量
+        // 支付行为和下单行为类似
         val payActionRdd = actionRdd.filter(
             action => {
                 var datas = action.split("_")
@@ -102,11 +108,12 @@ object Spark01_Req_HotCategoryTop10 {
                 cids.map(id => (id, 1))
             }
         ).reduceByKey(_+_)
-
-
-        // 将品类进行排序，并取前十
-        // 先按点击量排序，再按下单量排序，最后按支付数量排序
+        
+        // 将 品类的点击数量，品类的下单数量，品类的支付数量组合
         val cogroupRdd = clickCountRdd.cogroup(orderCountRdd, payCountRdd)
+        
+        // 将品类进行排序，并取前十
+        // 先按点击量排序，再按下单量排序，最后按支付数量排序        
         val analysisRdd = cogroupRdd.mapValues {
             case (clickIter, orderIter, payIter) => {
                 var clickCnt = 0
@@ -164,10 +171,10 @@ object Spark01_Req_HotCategoryTop10 {
 
         // 读取原始日志数据
         val actionRdd = sc.textFile("datas/user_visit_action.txt")
-        actionRdd.cache() // 解决 actionRdd 重复使用
-        // 2019-07-17_95_26070e87-1ad7-49a3-8fb3-cc741facaddf_37_2019-07-17 00:00:02_手机_-1_-1_null_null_null_null_3
-        // 2019-07-17_63_837f7970-3f77-4337-812c-c1e790ca05b7_39_2019-07-17 00:05:24_null_-1_-1_13,17,14,11_1,88,94_null_null_14
 
+        // 解决 actionRdd 重复使用
+        actionRdd.cache() 
+        
         // 统计品类的点击数量
         val clickActionRdd = actionRdd.filter(
             action => {
@@ -589,15 +596,9 @@ object Spark02_Req_HotCategorySessionTop10 {
 
 1） 页面单跳转化率
 
-什么是页面单跳转换率，比如一个用户在一次 Session 过程中访问的页面路径 3,5,7,9,10,21，那么页面 3 跳到页
+什么是页面单跳转换率，比如一个用户在一次 Session 过程中访问的页面路径 3,5,7,9,10,21，那么页面 3 跳到页面 5 叫一次单跳，7-9 也叫一次单跳， 那么单跳转化率就是要统计页面点击的概率。比如：计算 3-5 的单跳转化率，先获取符合条件的 Session 对于页面 3 的访问次数（PV） 为 A，然后获取符合条件的 Session 中访问了页面 3 又紧接着访问了页面 5 的次数为 B，那么 B/A 就是 3-5 的页面单跳转化率。
 
-面 5 叫一次单跳，7-9 也叫一次单跳， 那么单跳转化率就是要统计页面点击的概率。比如：计算 3-5 的单跳转化
-
-率，先获取符合条件的 Session 对于页面 3 的访问次数（PV） 为 A，然后获取符合条件的 Session 中访问了页面 
-
-3 又紧接着访问了页面 5 的次数为 B，那么 B/A 就是 3-5 的页面单跳转化率。
-
-![](../doc/62.png)
+![](../../doc/62.png)
 
 2） 统计页面单跳转化率意义 
 
