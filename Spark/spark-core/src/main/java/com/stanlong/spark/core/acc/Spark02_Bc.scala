@@ -22,17 +22,18 @@ object Spark02_Bc{
         // rdd1.map{
         //     case(w, c) => {
         //         val l = map.getOrElse(w, 0)
-        //         (w, (l,1))
+        //         (w, (c,l))
         //     }
         // }.collect().foreach(println)
 
-        // 使用广播变量
+        // 封装广播变量
         val bc = sc.broadcast(map)
+
         rdd1.map{
             case(w,c) => {
                 // 访问广播变量
-                bc.value.getOrElse(w, 0)
-                (w, (c,1))
+                val l = bc.value.getOrElse(w, 0)
+                (w, (c,l))
             }
         }.collect().foreach(println)
 

@@ -172,7 +172,7 @@ object Spark01_Req_HotCategoryTop10 {
         // 读取原始日志数据
         val actionRdd = sc.textFile("datas/user_visit_action.txt")
 
-        // 解决 actionRdd 重复使用
+        // 持久化， 解决 actionRdd 重复使用
         actionRdd.cache() 
         
         // 统计品类的点击数量
@@ -290,10 +290,7 @@ object Spark01_Req_HotCategoryTop10 {
 
         // 读取原始日志数据
         val actionRdd = sc.textFile("datas/user_visit_action.txt")
-
-        // 2019-07-17_95_26070e87-1ad7-49a3-8fb3-cc741facaddf_37_2019-07-17 00:00:02_手机_-1_-1_null_null_null_null_3
-        // 2019-07-17_63_837f7970-3f77-4337-812c-c1e790ca05b7_39_2019-07-17 00:05:24_null_-1_-1_13,17,14,11_1,88,94_null_null_14
-
+        
         // 将数据转换结构
         // 点击的场合:(品类ID,(1,0,0))
         // 下单的场合:(品类ID,(0,1,0))
@@ -359,8 +356,6 @@ object Spark01_Req_HotCategoryTop10 {
 
         // 读取原始日志数据
         val actionRdd = sc.textFile("datas/user_visit_action.txt")
-        // 2019-07-17_95_26070e87-1ad7-49a3-8fb3-cc741facaddf_37_2019-07-17 00:00:02_手机_-1_-1_null_null_null_null_3
-        // 2019-07-17_63_837f7970-3f77-4337-812c-c1e790ca05b7_39_2019-07-17 00:05:24_null_-1_-1_13,17,14,11_1,88,94_null_null_14
 
         // 声明累加器
         val acc = new HotCategoryAccumulator
