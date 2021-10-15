@@ -1,8 +1,10 @@
 # SparkSql
 
-对于开发人员来讲，SparkSQL 可以简化RDD 的开发，提高开发效率，且执行效率非常快，所以实际工作中，基本上采用的就是 SparkSQL。Spark SQL 提供了 2 个编程抽象，类似Spark Core 中的RDD: **DataFrame** 、**DataSet**
+## 简介
 
->  DataFrame
+对于开发人员来讲，SparkSQL 可以简化RDD 的开发，提高开发效率，且执行效率非常快，所以实际工作中，基本上采用的就是 SparkSQL。Spark SQL 提供了 2 个编程抽象，类似Spark Core 中的RDD: DataFrame、DataSet
+
+**DataFrame**
 
 在 Spark 中，DataFrame 是一种以 RDD 为基础的分布式数据集，类似于传统数据库中的二维表格。DataFrame 与 RDD 的主要区别在于，前者带有 schema 元信息，即 DataFrame 所表示的二维表数据集的每一列都带有名称和类型。这使得 Spark SQL 得以洞察更多的结构信息，从而对藏于 DataFrame 背后的数据源以及作用于 DataFrame 之上的变换进行了针对性的优化，最终达到大幅提升运行时效率的目标。反观 RDD，由于无从得知所存数据元素的具体内部结构，Spark Core 只能在 stage 层面进行简单、通用的流水线优化。
 
@@ -12,7 +14,7 @@ DataFrame 是为数据提供了 Schema 的视图。可以把它当做数据库�
 
 DataFrame 也是懒执行的，但性能上比 RDD 要高，主要原因：优化的执行计划，即查询计划通过 Spark catalyst optimiser 进行优化
 
-> DataSet
+**DataSet**
 
 DataSet 是分布式数据集合。DataSet 是Spark 1.6 中添加的一个新抽象，是DataFrame的一个扩展。它提供了RDD 的优势（强类型，使用强大的 lambda 函数的能力）以及SparkSQL 优化执行引擎的优点。DataSet 也可以使用功能性的转换（操作 map，flatMap，filter等等）。
 
@@ -28,7 +30,7 @@ DataSet 是分布式数据集合。DataSet 是Spark 1.6 中添加的一个新抽
 
   DataFrame 转换为DataSet。Row 是一个类型，跟 Car、Person 这些的类型一样，所有的表结构信息都用 Row 来表示。获取数据时需要指定顺序
 
-# SparkSQL 核心编程
+## 核心编程
 
 Spark Core 中，如果想要执行应用程序，需要首先构建上下文环境对象 SparkContext， Spark SQL 其实可以理解为对 Spark Core 的一种封装，不仅仅在模型上进行了封装，上下文环境对象也进行了封装。
 
@@ -36,15 +38,15 @@ Spark Core 中，如果想要执行应用程序，需要首先构建上下文环
 
 SparkSession 是 Spark 最新的 SQL 查询起始点，实质上是 SQLContext 和HiveContext 的组合，所以在 SQLContex 和HiveContext 上可用的API 在 SparkSession 上同样是可以使用的。SparkSession 内部封装了 SparkContext，所以计算实际上是由 sparkContext 完成的。当我们使用 spark-shell 的时候, spark 框架会自动的创建一个名称叫做 spark 的SparkSession 对象, 就像我们以前可以自动获取到一个 sc 来表示 SparkContext 对象一样。
 
-## DataFrame
+### DataFrame
 
-Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册临时表或者生成 SQL 表达式。DataFrame API 既有 transformation 操作也有 action 操作。
+#### 创建
 
-### 创建 DataFrame
+- 从 Spark 数据源进行创建
+- 从 RDD 进行转换
+- 从 Hive Table 进行查询返回
 
-在 Spark SQL 中 SparkSession 是创建DataFrame 和执行 SQL 的入口，创建 DataFrame 有三种方式：通过Spark 的数据源进行创建；从一个存在的RDD 进行转换；还可以从HiveTable 进行查询返回。
-
-**一、从 Spark 数据源进行创建**
+**从 Spark 数据源进行创建**
 
 1. 查看 Spark 支持创建文件的数据源格式
 
@@ -83,15 +85,15 @@ Spark SQL 的DataFrame API 允许我们使用 DataFrame 而不用必须去注册
    +---+--------+
    ```
 
-**二、从 RDD 进行转换**
+**从 RDD 进行转换**
 
 在后续章节中讨论
 
-**三、从 Hive Table 进行查询返回**
+**从 Hive Table 进行查询返回**
 
 在后续章节中讨论
 
-### SQL语法
+#### SQL语法
 
 1)  读取 JSON 文件创建DataFrame
 
@@ -151,7 +153,7 @@ scala> spark.sql("select * from json.`input/user.json`").show
 
 注意：普通临时表是 Session 范围内的，如果想应用范围内有效，可以使用全局临时表。使用全局临时表时需要全路径访问，如：global_temp.people
 
-1)    对于DataFrame 创建一个全局表
+4)    对于DataFrame 创建一个全局表
 
 ```powershell
 scala> df.createGlobalTempView("user")
@@ -167,7 +169,7 @@ scala> df.createGlobalTempView("user")
 21/08/21 17:51:05 WARN ObjectStore: Failed to get database global_temp, returning NoSuchObjectException
 ```
 
-2)    通过 SQL 语句实现查询全表
+5)    通过 SQL 语句实现查询全表
 
 ```powershell
 scala> spark.sql("SELECT * FROM global_temp.user").show()
@@ -183,7 +185,7 @@ scala> spark.sql("SELECT * FROM global_temp.user").show()
 #  newSession 只有在配置了全局临时表时才能用
 ```
 
-### DSL 语法
+#### DSL 语法
 
 DataFrame 提供一个特定领域语言(domain-specific language, DSL)去管理结构化的数据。可以在 Scala, Java, Python 和 R 中使用 DSL，使用 DSL 语法风格不必去创建临时视图了。
 
@@ -265,7 +267,7 @@ DataFrame 提供一个特定领域语言(domain-specific language, DSL)去管理
    +---+-----+
    ```
 
-### RDD 转换为 DataFrame
+#### RDD 转换为 DataFrame
 
 在 IDEA 中开发程序时，如果需要RDD 与DF 或者DS 之间互相操作，那么需要引入 import spark.implicits._
 
@@ -286,20 +288,20 @@ scala> rdd.toDF("id").show
 +---+
 ```
 
-### DataFrame转换为RDD
+#### DataFrame转换为RDD
 
 ```powershell
 scala> df.rdd
 res14: org.apache.spark.rdd.RDD[org.apache.spark.sql.Row] = MapPartitionsRDD[58] at rdd at <console>:26
 ```
 
-## DataSet
+### DataSet
 
 DataSet 是具有强类型的数据集合，需要提供对应的类型信息。
 
-### 创建DataSet
+#### 创建
 
-1）	使用样例类序列创建 DataSet
+1）使用样例类序列创建 DataSet
 
 ```powershell
 scala> case class Person(name: String, age: Long)
@@ -320,7 +322,7 @@ scala> ds.show
 +--------+---+
 ```
 
-2）	使用基本类型的序列创建DataSet
+2）使用基本类型的序列创建DataSet
 
 ```powershell
 scala> val ds = Seq(1,2,3,4,5).toDS
@@ -341,7 +343,9 @@ scala> ds.show
 
 注意：在实际使用的时候，很少用到把序列转换成DataSet，更多的是通过RDD 来得到DataSet
 
-### DataFrame 和 DataSet转换
+### 转换关系
+
+**DataFrame 和 DataSet转换**
 
 ```powershell
 scala> val df = spark.read.json("input/user.json")
@@ -373,14 +377,14 @@ scala> ds.show
 +---+--------+
 ```
 
-### DataSet 和 DataFrame 转换
+**DataSet 和 DataFrame 转换**
 
 ```powershell
 scala> ds.toDF
 res7: org.apache.spark.sql.DataFrame = [age: bigint, username: string]
 ```
 
-### RDD转换为DataSet
+**RDD转换为DataSet**
 
 ```powershell
 scala> val rdd = sc.makeRDD(List(Emp(30, "zhangsan"), Emp(40,"lisi")))
@@ -390,7 +394,7 @@ scala> rdd.toDS
 res8: org.apache.spark.sql.Dataset[Emp] = [age: bigint, username: string]
 ```
 
-### DataSet 转换为RDD
+**DataSet 转换为RDD**
 
 ```powershell
 scala> val rdd = sc.makeRDD(List(Emp(30, "zhangsan"), Emp(40,"lisi")))
@@ -403,7 +407,7 @@ scala> ds.rdd # DS 转 RDD
 res9: org.apache.spark.rdd.RDD[Emp] = MapPartitionsRDD[15] at rdd at <console>:26
 ```
 
-## RDD、DataFrame、DataSet 三者的关系
+### RDD、DataFrame、DataSet 三者的关系
 
 在 SparkSQL 中 Spark 为我们提供了两个新的抽象，分别是 DataFrame 和 DataSet。他们和 RDD 有什么区别呢？首先从版本的产生上来看：
 Spark1.0 => RDD
@@ -413,7 +417,7 @@ Spark1.3 => DataFrame
 Spark1.6 => Dataset
 如果同样的数据都给到这三个数据结构，他们分别计算之后，都会给出相同的结果。不同是的他们的执行效率和执行方式。在后期的 Spark 版本中，DataSet 有可能会逐步取代RDD和 DataFrame 成为唯一的API 接口。
 
-### 三者的共性
+**三者的共性**
 
 - RDD、DataFrame、DataSet 全都是 spark 平台下的分布式弹性数据集，为处理超大型数据提供便利;
 
@@ -430,7 +434,7 @@ Spark1.6 => Dataset
 
 - DataFrame 和DataSet 均可使用模式匹配获取各个字段的值和类型
 
-### 三者的区别
+**三者的区别**
 
   1)	RDD
 
@@ -453,7 +457,7 @@ Spark1.6 => Dataset
   DataFrame 其实就是DataSet 的一个特例	type DataFrame = Dataset[Row]
 - DataFrame 也可以叫Dataset[Row],每一行的类型是 Row，不解析，每一行究竟有哪些字段，各个字段又是什么类型都无从得知，只能用上面提到的 getAS 方法或者共性中的第七条提到的模式匹配拿出特定字段。而Dataset 中，每一行是什么类型是不一定的，在自定义了 case class 之后可以很自由的获得每一行的信息
 
-### 三者的互相转换
+**三者的互相转换**
 
 ![](./doc/64.png)
 
