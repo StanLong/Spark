@@ -1,5 +1,7 @@
 # Sprk部署模式
 
+存盘地址 http://archive.apache.org/dist/spark/
+
 Spark 作为一个数据处理框架和计算引擎，被设计在所有常见的集群环境中运行, 在国内工作中主流的环境为
 
 Yarn，不过逐渐容器式环境也慢慢流行起来。接下来，我们就分别看看不同环境下Spark 的运行
@@ -15,10 +17,10 @@ Yarn，不过逐渐容器式环境也慢慢流行起来。接下来，我们就�
 ### spark 安装
 
 ```shell
-[root@node01 ~]# tar -zxf spark-3.0.0-bin-hadoop2.7.tgz
-[root@node01 ~]# mv spark-3.0.0-bin-hadoop2.7 /opt/stanlong/
+[root@node01 ~]# tar -zxf spark-2.0.0-bin-hadoop2.7.tgz
+[root@node01 ~]# mv spark-2.0.0-bin-hadoop2.7 /opt/stanlong/
 [root@node01 ~]# cd /opt/stanlong/
-[root@node01 stanlong]# mv spark-3.0.0-bin-hadoop2.7/ spark-local
+[root@node01 stanlong]# mv spark-2.0.0-bin-hadoop2.7/ spark-local
 [root@node01 stanlong]# ll
 total 4
 drwxr-xr-x 13 1000  1000  211 Jun  6 08:09 spark-local
@@ -36,7 +38,7 @@ Welcome to
       ____              __
      / __/__  ___ _____/ /__
     _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 3.0.0
+   /___/ .__/\_,_/_/ /_/\_\   version 2.0.0
       /_/
          
 Using Scala version 2.12.10 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_221)
@@ -83,7 +85,7 @@ http://node01:4040/jobs/
 [root@node01 spark-local]# bin/spark-submit \
 > --class org.apache.spark.examples.SparkPi \
 > --master local[2] \
-> ./examples/jars/spark-examples_2.12-3.0.0.jar \
+> ./examples/jars/spark-examples_2.11-2.0.0.jar \
 > 10
 ```
 
@@ -98,7 +100,7 @@ http://node01:4040/jobs/
 
 2)	--master local[2] 部署模式，默认为本地模式，数字表示分配的虚拟CPU 核数量
 
-3)	spark-examples_2.12-3.0.0.jar 运行的应用类所在的 jar 包，实际使用时，可以设定为咱们自己打的 jar 包
+3)	spark-examples_2.12-2.0.0.jar 运行的应用类所在的 jar 包，实际使用时，可以设定为咱们自己打的 jar 包
 
 4)	数字 10 表示程序的入口参数，用于设定当前应用的任务数量
 ```
@@ -139,10 +141,10 @@ application-arguments: 传给 main()方法的参数
 ### spark安装
 
 ```shell
-[root@node01 ~]# tar -zxf spark-3.0.0-bin-hadoop2.7.tgz
-[root@node01 ~]# mv spark-3.0.0-bin-hadoop2.7 /opt/stanlong/
+[root@node01 ~]# tar -zxf spark-2.0.0-bin-hadoop2.7.tgz
+[root@node01 ~]# mv spark-2.0.0-bin-hadoop2.7 /opt/stanlong/
 [root@node01 ~]# cd /opt/stanlong/
-[root@node01 stanlong]# mv spark-3.0.0-bin-hadoop2.7 spark-yarn
+[root@node01 stanlong]# mv spark-2.0.0-bin-hadoop2.7 spark-yarn
 [root@node01 stanlong]# ll
 total 4
 drwxr-xr-x 13 1000 1000  211 2020/06/06 20:09:17 spark-local
@@ -204,7 +206,7 @@ YARN_CONF_DIR=/opt/stanlong/hadoop-ha/hadoop-2.9.2/etc/hadoop
 > --class org.apache.spark.examples.SparkPi \
 > --master yarn \
 > --deploy-mode cluster \
-> ./examples/jars/spark-examples_2.12-3.0.0.jar \
+> ./examples/jars/spark-examples_2.11-2.0.0.jar \
 > 10
 ```
 
@@ -306,7 +308,7 @@ Welcome to
       ____              __
      / __/__  ___ _____/ /__
     _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 3.0.0
+   /___/ .__/\_,_/_/ /_/\_\   version 2.0.0
       /_/
 
 Using Scala version 2.12.10 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_212)
