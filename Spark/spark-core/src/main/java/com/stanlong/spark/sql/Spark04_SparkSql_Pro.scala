@@ -7,7 +7,9 @@ import org.apache.spark.sql.{Encoder, Encoders, SparkSession, functions}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-
+/**
+ * 个区域热门商品Top3
+ */
 object Spark04_SparkSql_Pro {
 
     def main(args: Array[String]): Unit = {
